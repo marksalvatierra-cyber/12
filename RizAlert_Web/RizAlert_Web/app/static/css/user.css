@@ -1,0 +1,42 @@
+ .btn-gradient-red {
+            background: linear-gradient(90deg,#ef4444 0%, #b91c1c 100%);
+            color: #fff;
+            border: none;
+            box-shadow: 0 10px 30px rgba(185,28,28,0.12);
+            transition: transform .12s ease, box-shadow .12s ease;
+        }
+
+        /* Badges */
+        .badge { border-radius: 999px; padding: .35rem .6rem; font-weight: 700; display:inline-flex; align-items:center; gap:8px; }
+        .badge-error { background: linear-gradient(90deg, rgba(255, 255, 255, 1), rgba(240, 240, 240, 1)); color: #000000ff; }
+        .badge-info { background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(37,99,235,0.06)); color: #1e40af; }
+        .badge-warning { background: linear-gradient(90deg, rgba(255, 255, 255, 1), rgba(240, 240, 240, 1)); color: #000000ff; }
+        .badge-success { background: linear-gradient(90deg, rgba(16,185,129,0.12), rgba(16,185,129,0.06)); color: #065f46; }
+        .badge-ghost { background: rgba(15,23,42,0.03); color: var(--muted); }
+
+        .btn-gradient-red:hover, .btn-gradient-red:focus { transform: translateY(-2px); box-shadow:0 16px 36px rgba(185,28,28,0.18); }
+        input.input-bordered:focus, .select.select-bordered:focus, textarea.textarea-bordered:focus {
+            outline: none;
+            box-shadow: 0 8px 30px rgba(59,130,246,0.06);
+            border-color: rgba(59,130,246,0.9);
+        }
+        /* password toggle inside input */
+        .input-with-toggle { position: relative; }
+        
+        .pw-toggle-btn {
+            position: absolute;
+            right: 10%;
+            top: 50%;
+            transform: translateY(-50%);
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            width:34px;
+            height:34px;
+            border-radius:8px;
+            background: transparent;
+            color: rgba(55,65,81,0.9);
+            border: none;
+            cursor: pointer;
+        }
+        .pw-toggle-btn:focus { outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }

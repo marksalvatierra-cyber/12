@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RizAlert - Emergency Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- include centralized sidebar CSS -->
+    <link rel="stylesheet" href="/static/css/sidebar.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- NEW: blue gradient button style -->
+    <style>
+        .btn-gradient-blue {
+            background: linear-gradient(90deg, #fd1d1dff 0%, #b50000ff 100%);
+            color: #ffffff;
+            border: none;
+            box-shadow: 0 6px 18px rgba(99,102,241,0.12);
+        }
+
+        /* Badges */
+        .badge { border-radius: 999px; padding: .35rem .6rem; font-weight: 700; display:inline-flex; align-items:center; gap:8px; }
+        .badge-error { background: linear-gradient(90deg, rgba(255, 255, 255, 1), rgba(240, 240, 240, 1)); color: #000000ff; }
+        .badge-info { background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(37,99,235,0.06)); color: #1e40af; }
+        .badge-warning { background: linear-gradient(90deg, rgba(255, 255, 255, 1), rgba(240, 240, 240, 1)); color: #000000ff; }
+        .badge-success { background: linear-gradient(90deg, rgba(16,185,129,0.12), rgba(16,185,129,0.06)); color: #065f46; }
+        .badge-ghost { background: rgba(15,23,42,0.03); color: var(--muted); }
+
+
+        .btn-gradient-blue:hover, .btn-gradient-blue:focus {
+            background: linear-gradient(90deg, #eb2525ff 0%, #e54646ff 100%);
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+        .btn-gradient-blue .fas { color: #ffffff; } /* ensure icon is white */
+    </style>
+</head>
+<body class="bg-base-200">
+    <div class="drawer lg:drawer-open">
+        <input id="drawer-toggle" type="checkbox" class="drawer-toggle" />
+        <!-- Main Content -->
+        <div class="drawer-content flex flex-col">
+            <!-- Navbar -->
+            <div class="navbar bg-red-900 shadow-lg">
+                <div class="flex-none lg:hidden">
+                    <label for="drawer-toggle" class="btn btn-square btn-ghost">
+                        <i class="fas fa-bars text-white text-xl"></i>
+                    </label>
+                </div>
+                <div class="flex-1">
+                    <h1 class="text-xl font-bold text-white">Emergency Management</h1>
+                </div>
+                <div class="flex-none">
+                    <button class="btn btn-gradient-blue mr-4" onclick="openSpreadAlertModal()" aria-label="Spread Alert">
+                        <i class="fas fa-bullhorn mr-2"></i>Spread Alert
+                    </button>
+                    <div class="dropdown dropdown-end">
+                        <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
+                            <div class="w-10 rounded-full">
+                                <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                            </div>
+                        </div>
+                        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+                            <li><a href="/admin/profile"><i class="fas fa-user mr-2"></i>Profile</a></li>
+                            <li><a href="/admin/logout"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <!-- Emergency Management Content -->
+            <div class="p-6">
+                <!-- NEW: modern 2-color stats (primary blue + charcoal) -->
+                <style>
+                    /* Scoped modern stats */
+                    .stats-grid { display:grid; gap:1rem; }
+                    @media (min-width:768px){ .stats-grid{ grid-template-columns:repeat(2,1fr); } }
+                    @media (min-width:1024px){ .stats-grid{ grid-template-columns:repeat(4,1fr); } }
+
+                    .stat-card {
+                        background: #ffffff;
+                        border-radius: 12px;
+                        padding: 16px;
+                        display:flex;
+                        gap:14px;
+                        align-items:center;
+                        border: 1px solid rgba(17,24,39,0.06);
+                        box-shadow: 0 6px 20px rgba(17,24,39,0.04);
+                    }
+
+                    /* Primary color: blue; Secondary: charcoal */
+                    .stat-icon {
+                        width:56px;
+                        height:56px;
+                        border-radius:10px;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        color:#fff;
+                        background: linear-gradient(90deg, #f63b3bff 0%, #9f0000ff 100%);
+                        flex-shrink:0;
+                        font-size:20px;
+                    }
+
+                    .stat-meta .stat-title {
+                        font-size:0.88rem;
+                        color:#111827; /* charcoal */
+                        font-weight:700;
+                        letter-spacing:0.2px;
+                    }
+                    .stat-meta .stat-value {
+                        font-size:1.45rem;
+                        color:#111827;
+                        font-weight:800;
+                        margin-top:4px;
+                    }
+                    .stat-meta .stat-desc {
+                        font-size:0.85rem;
+                        color:rgba(17,24,39,0.55);
+                        margin-top:6px;
+                    }
+                </style>
+
+                <div class="stats-grid mb-6">
+                    <div class="stat-card">
+                        <div class="stat-icon" aria-hidden="true"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="stat-meta">
+                            <div class="stat-title">Active Emergencies</div>
+                            <div class="stat-value">{{ emergencies | selectattr('isActive') | list | length }}</div>
+                            <div class="stat-desc">Currently ongoing</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon" aria-hidden="true"><i class="fas fa-clock"></i></div>
+                        <div class="stat-meta">
+                            <div class="stat-title">Pending</div>
+                            <div class="stat-value">{{ emergencies | selectattr('status.value', 'equalto', 'Pending') | list | length }}</div>
+                            <div class="stat-desc">Awaiting response</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon" aria-hidden="true"><i class="fas fa-spinner"></i></div>
+                        <div class="stat-meta">
+                            <div class="stat-title">In Progress</div>
+                            <div class="stat-value">{{ emergencies | selectattr('status.value', 'equalto', 'In Progress') | list | length }}</div>
+                            <div class="stat-desc">Being handled</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon" aria-hidden="true"><i class="fas fa-check-circle"></i></div>
+                        <div class="stat-meta">
+                            <div class="stat-title">Resolved</div>
+                            <div class="stat-value">{{ emergencies | selectattr('status.value', 'equalto', 'Resolved') | list | length }}</div>
+                            <div class="stat-desc">Successfully closed</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Filter Controls -->
+                <div class="card bg-base-100 shadow-xl mb-6">
+                    <div class="card-body">
+                        <div class="flex flex-col md:flex-row gap-4">
+                            <div class="form-control flex-1">
+                                <input type="text" placeholder="Search emergencies..." class="input input-bordered" id="searchInput" oninput="filterEmergencies()"/>
+                            </div>
+                            <select class="select select-bordered" id="typeFilter" onchange="filterEmergencies()">
+                                <option value="">All Types</option>
+                                {% for case_type in case_types %}
+                                <option value="{{ case_type.value }}">{{ case_type.value }}</option>
+                                {% endfor %}
+                            </select>
+                            <select class="select select-bordered" id="statusFilter" onchange="filterEmergencies()">
+                                <option value="">All Status</option>
+                                {% for status in statuses %}
+                                <option value="{{ status.value }}">{{ status.value }}</option>
+                                {% endfor %}
+                            </select>
+                            <select class="select select-bordered" id="activeFilter" onchange="filterEmergencies()">
+                                <option value="">All</option>
+                                <option value="true">Active Only</option>
+                                <option value="false">Inactive Only</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <!-- Emergencies Table -->
+                <div class="card bg-base-100 shadow-xl card-modern">
+                    <div class="card-body p-0">
+                        <style>
+                            /* Emergencies modern table styles */
+                            .emerg-table { width:100%; border-collapse:collapse; font-size: 0.95rem; }
+                            .emerg-table thead th { text-align:left; padding:12px 16px; font-weight:600; font-size:12px; color:#374151; background:rgba(15,23,42,0.03); border-bottom:1px solid rgba(15,23,42,0.06); text-transform:uppercase; letter-spacing:.06em;}
+                            .emerg-table tbody td { padding:12px 16px; border-bottom:1px solid rgba(15,23,42,0.04); vertical-align:middle; }
+                            .emerg-row { transition: background .12s, transform .08s; }
+                            .emerg-row:hover { background: rgba(15,23,42,0.02); transform:translateY(-2px); }
+                            .thumb { width:64px; height:48px; border-radius:6px; object-fit:cover; display:block; }
+                            .type-pill { display:inline-flex; align-items:center; gap:.5rem; padding:6px 10px; border-radius:999px; font-weight:600; color:#fff; font-size:.82rem; }
+                            .type-typhoon { background: linear-gradient(90deg,#f59e0b,#f97316); }
+                            .type-fire { background: linear-gradient(90deg,#ef4444,#dc2626); }
+                            .type-crime { background: linear-gradient(90deg,#06b6d4,#3b82f6); }
+                            .type-flood { background: linear-gradient(90deg,#06b6d4,#0ea5a4); }
+                            .type-default { background: linear-gradient(90deg,#10b981,#34d399); }
+                            .status-dot { width:10px; height:10px; border-radius:999px; display:inline-block; margin-right:8px; vertical-align:middle; box-shadow:0 1px 2px rgba(0,0,0,0.06); }
+                            .status-resolved { background:#10b981; }
+                            .status-pending { background:#f59e0b; }
+                            .status-progress { background:#60a5fa; }
+                            .status-active { background:green; margin-left:6px; padding:2px 8px; border-radius:6px; font-size:11px; color:#fff; font-weight:600; }
+                            .reporter { color: rgba(15,23,42,0.8); font-weight:600; }
+                            .muted { color: rgba(15,23,42,0.55); font-size:0.92rem; }
+                            .action-icon { width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; color:#374151; }
+                            .action-icon:hover { background: rgba(0,0,0,0.04); }
+                            @media (max-width:768px) {
+                                .emerg-table thead{display:none}
+                                .emerg-table tbody td{display:block;padding:10px}
+                                .emerg-table tbody tr{display:block;margin-bottom:10px;background:#fff;border-radius:8px;box-shadow:0 4px 12px rgba(15,23,42,0.03)}
+                            }
+                        </style>
+
+                        <div class="overflow-x-auto">
+                            <table class="emerg-table" id="emergenciesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Image</th>
+                                        <th>Description</th>
+                                        <th>Type</th>
+                                        <th>Reported By</th>
+                                        <th>Location</th>
+                                        <th>Responders</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th class="text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for emergency in emergencies %}
+                                    <tr class="emerg-row" data-type="{{ emergency.case_type.value }}" data-status="{{ emergency.status.value }}" data-active="{{ 'true' if emergency.isActive else 'false' }}">
+                                        <td>
+                                            {% if emergency.file_id %}
+                                            <img class="thumb" src="{{ emergency.file_id }}" alt="Emergency">
+                                            {% else %}
+                                            <div class="w-16 h-12 flex items-center justify-center bg-neutral text-neutral-content rounded-md">
+                                                <i class="fas fa-image"></i>
+                                            </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="flex items-start gap-3">
+                                                <!----<div class="w-10 h-10 flex items-center justify-center rounded-full text-white">
+                                                    <div class="text-lg">
+                                                        <i class="fas fa-{{ 'wind' if emergency.case_type.value == 'Typhoon' else 'fire' if emergency.case_type.value == 'Fire' else 'shield-alt' if emergency.case_type.value == 'Crime' else 'water' if emergency.case_type.value == 'Flood' else 'heartbeat' }}"></i>
+                                                    </div> 
+                                                </div>-->
+                                                <div>
+                                                    <!--<div class="font-semibold">{{ emergency.case_type.value }} Emergency</div>-->
+                                                    <div class="muted">{{ (emergency.message or 'No message')[:80] }}{% if emergency.message and emergency.message|length > 80 %}...{% endif %}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% set ct = emergency.case_type.value %}
+                                            <!-- plain text only, no color classes -->
+                                            <div style="font-weight:600;">{{ ct }}</div>
+                                        </td>
+                                        <td>
+                                            <div class="flex items-center gap-2">
+                                                <div class="bg-neutral text-neutral-content rounded-full w-8 h-8 flex items-center justify-center">
+                                                    <i class="fas fa-user text-xs"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="reporter">@{{ emergency.user.username }}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if emergency.latitude and emergency.longitude %}
+                                            <button class="btn btn-ghost btn-xs" 
+                                                    data-lat="{{ emergency.latitude }}" 
+                                                    data-lng="{{ emergency.longitude }}"
+                                                    data-title="{{ emergency.case_type.value }} Emergency"
+                                                    data-location="{{ emergency.location_text or '' }}"
+                                                    onclick="viewOnMapFromData(this)">
+                                                <i class="fas fa-map-marker-alt text-primary"></i>
+                                                <span class="muted ml-1">View</span>
+                                            </button>
+                                            {% else %}
+                                            <span class="muted">No location</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="flex items-center gap-2">
+                                                {% if emergency.responders %}
+                                                    {% for responder in emergency.responders[:2] %}
+                                                    <span class="badge badge-sm {{ '' if responder.isArrived else '' }}" title="{{ responder.fullName }} - {{ responder.status }}">
+                                                        <i class="fas fa-user-shield mr-1"></i>{{ responder.fullName[:25] }}{% if responder.fullName|length > 12 %}...{% endif %}
+                                                    </span>
+                                                    {% endfor %}
+                                                    {% if emergency.responders|length > 2 %}
+                                                    <span class="badge badge-sm badge-ghost">+{{ emergency.responders|length - 2 }}</span>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="muted">No responders</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% set st = emergency.status.value %}
+                                            <span class="inline-flex items-center">
+                                                <span class="status-dot {% if st == 'Resolved' %}status-resolved{% elif st == 'Pending' %}status-pending{% else %}status-progress{% endif %}"></span>
+                                                <span style="font-weight:600;">{{ st }}</span>
+                                            </span>
+                                            {% if emergency.isActive %}
+                                            <span class="status-active">Active</span>
+                                            {% endif %}
+                                        </td>
+                                        <td><div class="muted">{{ emergency.created_at.strftime('%Y-%m-%d %H:%M') if emergency.created_at else 'Unknown' }}</div></td>
+                                        <td class="text-right">
+                                            <div class="dropdown dropdown-end">
+                                                <button class="action-icon" tabindex="0" aria-haspopup="true" aria-expanded="false">
+                                                    <i class="fas fa-ellipsis-v"></i>
+                                                </button>
+                                                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+                                                    <li>
+                                                        <a onclick="viewEmergency('{{ emergency.id }}')" class="flex items-center gap-2">
+                                                            <i class="fas fa-eye"></i><span>View Details</span>
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a onclick="editEmergency('{{ emergency.id }}')" class="flex items-center gap-2">
+                                                            <i class="fas fa-edit"></i><span>Edit</span>
+                                                        </a>
+                                                    </li>
+                                                    {% if emergency.isActive %}
+                                                    <li><a onclick="deactivateEmergency('{{ emergency.id }}')" class="flex items-center gap-2"><i class="fas fa-ban"></i><span>Deactivate</span></a></li>
+                                                    {% endif %}
+                                                    <li><a onclick="deleteEmergency('{{ emergency.id }}')" class="flex items-center gap-2 text-error"><i class="fas fa-trash"></i><span>Delete</span></a></li>
+                                                </ul>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="9" class="text-center text-base-content/70">No emergencies found</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Sidebar -->
+        <div class="drawer-side">
+            <label for="drawer-toggle" aria-label="close sidebar" class="drawer-overlay"></label>
+            <aside class="min-h-full w-64 sidebar-modern">
+                <div class="p-4">
+                    <div class="sidebar-profile">
+                        <div class="avatar">
+                            <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                        </div>
+                        <div class="meta">
+                            <div class="name">{{ current_user.fullName if current_user else 'Administrator' }}</div>
+                            <div class="sub">{{ current_user.email if current_user else 'admin@local' }}</div>
+                        </div>
+                    </div>
+                    <ul class="menu p-0 w-full">
+                        <li><a href="/" class="nav-link"><i class="fas fa-home nav-icon"></i><span>Home</span></a></li>
+                        <li><a href="/users" class="nav-link"><i class="fas fa-users nav-icon"></i><span>Users</span></a></li>
+                        <li><a href="/reports" class="nav-link"><i class="fas fa-chart-bar nav-icon"></i><span>Reports</span></a></li>
+                        <li><a href="/sirens" class="nav-link"><i class="fas fa-volume-up nav-icon"></i><span>IoT Siren</span></a></li>
+                        <li class="menu-title text-white">Emergency</li>
+                        <li><a href="/emergencies" class="active nav-link"><i class="fas fa-exclamation-triangle nav-icon"></i><span>Emergencies</span></a></li>
+                        <li><a href="/alerts" class="nav-link"><i class="fas fa-bullhorn nav-icon"></i><span>Emergency Alerts</span></a></li>
+                        <li><a href="/map" class="nav-link"><i class="fas fa-map-marked-alt nav-icon"></i><span>Incident Map</span></a></li>
+                        <li><a href="/weather" class="nav-link"><i class="fas fa-cloud-sun nav-icon"></i><span>Weather Map</span></a></li>
+                        <li class="menu-title text-white">Settings</li>
+                        <li><a href="javascript:void(0)" onclick="showNotifications()" class="nav-link"><i class="fas fa-bell nav-icon"></i><span>Notifications</span></a></li>
+                        <li><a href="/configuration" class="nav-link"><i class="fas fa-cog nav-icon"></i><span>Configuration</span></a></li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Spread Alert Modal -->
+    <dialog id="spreadAlertModal" class="modal">
+        <div class="modal-box w-11/12 max-w-2xl">
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+              <i class="fas fa-bullhorn bg-gradient-to-r from-red-500 to-red-700 text-transparent bg-clip-text"></i>
+                Spread Emergency Alert
+            </h3>
+            <div class="alert  mb-4">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>This will broadcast an emergency alert to all users in the system.</span>
+            </div>
+            <form id="spreadAlertForm" onsubmit="submitAlert(event)">
+                <div class="grid grid-cols-1 gap-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Emergency Type</span>
+                        </label>
+                        <select name="emergency_type" class="select select-bordered select-error" required>
+                            <option value="">Select emergency type</option>
+                            {% for case_type in case_types %}
+                            <option value="{{ case_type.name }}">{{ case_type.value }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Emergency Description </span>
+                        </label>
+                        <textarea name="emergency_descriptions" class="textarea textarea-bordered textarea-error h-32" placeholder="Provide detailed description of the emergency situation..." required></textarea>
+                        <label class="label">
+                            <span class="label-text-alt">Be clear and concise. This message will be sent to all users.</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-action">
+                    <button type="button" class="btn" onclick="closeSpreadAlertModal()">Cancel</button>
+                   <button
+                 type="submit"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white shadow-md transition transform hover:-translate-y-0.5
+                  bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800">
+                 <i class="fas fa-bullhorn mr-2"></i>
+                 Spread Alert
+                </button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script>
+        function openSpreadAlertModal() {
+            document.getElementById('spreadAlertModal').showModal();
+        }
+
+        function closeSpreadAlertModal() {
+            document.getElementById('spreadAlertModal').close();
+            document.getElementById('spreadAlertForm').reset();
+        }
+
+        function submitAlert(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = {
+                emergency_type: formData.get('emergency_type'),
+                emergency_descriptions: formData.get('emergency_descriptions')
+            };
+
+            if (confirm('Are you sure you want to spread this emergency alert to all users?')) {
+                fetch('/api/emergency-alerts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(result => {
+                    alert('Emergency alert spread successfully!');
+                    closeSpreadAlertModal();
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to spread emergency alert');
+                });
+            }
+        }
+
+        function filterEmergencies() {
+            const searchValue = document.getElementById('searchInput').value.toLowerCase();
+            const typeFilter = document.getElementById('typeFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const activeFilter = document.getElementById('activeFilter').value;
+            const rows = document.querySelectorAll('#emergenciesTable tbody tr');
+
+            const normalizeActive = (v) => {
+                if (v === null || v === undefined) return '';
+                v = String(v).trim().toLowerCase();
+                if (['1','true','yes','y'].includes(v)) return 'true';
+                if (['0','false','no','n'].includes(v)) return 'false';
+                return '';
+            };
+
+            const desiredActive = normalizeActive(activeFilter);
+
+            rows.forEach(row => {
+                if (row.cells.length === 1) return; // Skip "no emergencies" row
+
+                const type = row.getAttribute('data-type') || '';
+                const status = row.getAttribute('data-status') || '';
+                const isActiveRaw = row.getAttribute('data-active');
+                const isActiveNorm = normalizeActive(isActiveRaw);
+                const text = row.textContent.toLowerCase();
+
+                const matchesSearch = text.includes(searchValue);
+                const matchesType = !typeFilter || type === typeFilter;
+                const matchesStatus = !statusFilter || status === statusFilter;
+                const matchesActive = !desiredActive || isActiveNorm === desiredActive;
+
+                row.style.display = (matchesSearch && matchesType && matchesStatus && matchesActive) ? '' : 'none';
+            });
+        }
+
+        function viewEmergency(id) {
+            // Mark emergency as viewed before navigating
+            if (typeof markEmergencyViewed === 'function') {
+                markEmergencyViewed(id);
+            }
+            window.location.href = `/emergencies/${id}`;
+        }
+
+        function editEmergency(id) {
+            window.location.href = `/emergencies/${id}/edit`;
+        }
+
+        function deactivateEmergency(id) {
+            if (confirm('Are you sure you want to deactivate this emergency?')) {
+                fetch(`/api/emergencies/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ isActive: false })
+                })
+                .then(response => response.json())
+                .then(result => {
+                    alert('Emergency deactivated successfully!');
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to deactivate emergency');
+                });
+            }
+        }
+
+        function deleteEmergency(id) {
+            if (confirm('Are you sure you want to delete this emergency? This action cannot be undone.')) {
+                fetch(`/api/emergencies/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(result => {
+                    alert('Emergency deleted successfully!');
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to delete emergency');
+                });
+            }
+        }
+
+        function viewResponders(emergencyId) {
+            fetch(`/api/emergencies/${emergencyId}`)
+                .then(response => response.json())
+                .then(emergency => {
+                    const responders = emergency.responders || [];
+                    
+                    if (responders.length === 0) {
+                        alert('No responders assigned to this emergency.');
+                        return;
+                    }
+                    
+                    let content = '<div class="space-y-4">';
+                    responders.forEach((responder, index) => {
+                        const arrivedBadge = responder.isArrived 
+                            ? '<span class="badge badge-success badge-sm">Arrived</span>' 
+                            : '<span class="badge badge-warning badge-sm">En Route</span>';
+                        
+                        const statusColor = responder.status === 'IN_PROGRESS' 
+                            ? 'badge-warning' 
+                            : responder.status === 'RESOLVED' 
+                            ? 'badge-success' 
+                            : 'badge-info';
+                        
+                        content += `
+                            <div class="card bg-base-200 p-4">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="font-bold">${responder.fullName || 'Unknown User'}</div>
+                                        <div class="text-sm opacity-70">@${responder.username || 'unknown'}</div>
+                                        ${responder.response_datetime ? `<div class="text-xs opacity-50">Responded: ${new Date(responder.response_datetime).toLocaleString()}</div>` : ''}
+                                    </div>
+                                    <div class="flex flex-col gap-1 items-end">
+                                        ${arrivedBadge}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    content += '</div>';
+                    
+                    // Create and show modal
+                    const modal = document.createElement('dialog');
+                    modal.className = 'modal';
+                    modal.innerHTML = `
+                        <div class="modal-box">
+                            <h3 class="font-bold text-lg mb-4">
+                                <i class="fas fa-user-shield text-primary mr-2"></i>
+                                Emergency Responders (${responders.length})
+                            </h3>
+                            ${content}
+                            <div class="modal-action">
+                                <button class="btn" onclick="this.closest('dialog').close(); this.closest('dialog').remove();">Close</button>
+                            </div>
+                        </div>
+                        <form method="dialog" class="modal-backdrop">
+                            <button>close</button>
+                        </form>
+                    `;
+                    document.body.appendChild(modal);
+                    modal.showModal();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to load responder information');
+                });
+        }
+
+        function viewOnMap(lat, lng, title, locationText) {
+            // Create modal for map
+            const modal = document.createElement('dialog');
+            modal.className = 'modal';
+            modal.id = 'mapModal';
+            modal.innerHTML = `
+                <div class="modal-box w-11/12 max-w-5xl">
+                    <h3 class="font-bold text-lg mb-4">
+                        <i class="fas fa-map-marked-alt text-primary mr-2"></i>
+                        ${title}
+                    </h3>
+                    ${locationText ? `<div class="alert alert-info mb-4">
+                        <i class="fas fa-location-dot"></i>
+                        <span>${locationText}</span>
+                    </div>` : ''}
+                    <div class="mb-4">
+                        <div class="badge badge-outline">
+                            <i class="fas fa-map-pin mr-1"></i>
+                            Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}
+                        </div>
+                    </div>
+                    <div id="mapContainer" style="height: 400px; width: 100%; border-radius: 8px;"></div>
+                    <div class="modal-action">
+                        <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt mr-2"></i>Open in Google Maps
+                        </a>
+                        <button class="btn" onclick="closeMapModal()">Close</button>
+                    </div>
+                </div>
+                <form method="dialog" class="modal-backdrop">
+                    <button onclick="closeMapModal()">close</button>
+                </form>
+            `;
+            
+            document.body.appendChild(modal);
+            modal.showModal();
+            
+            // Initialize map after modal is shown
+            setTimeout(() => {
+                const map = L.map('mapContainer').setView([lat, lng], 15);
+                
+                // Add OpenStreetMap tiles
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19
+                }).addTo(map);
+                
+                // Add marker
+                const marker = L.marker([lat, lng]).addTo(map);
+                marker.bindPopup(`<b>${title}</b><br>${locationText || 'Emergency Location'}`).openPopup();
+                
+                // Store map instance for cleanup
+                modal.mapInstance = map;
+            }, 100);
+        }
+
+        function closeMapModal() {
+            const modal = document.getElementById('mapModal');
+            if (modal) {
+                // Clean up map instance
+                if (modal.mapInstance) {
+                    modal.mapInstance.remove();
+                }
+                modal.close();
+                modal.remove();
+            }
+        }
+
+        function viewOnMapFromData(button) {
+            const lat = parseFloat(button.getAttribute('data-lat'));
+            const lng = parseFloat(button.getAttribute('data-lng'));
+            const title = button.getAttribute('data-title');
+            const locationText = button.getAttribute('data-location');
+            viewOnMap(lat, lng, title, locationText);
+        }
+    </script>
+</body>
+
+    <script src="/static/js/notifications.js"></script>
+</html>

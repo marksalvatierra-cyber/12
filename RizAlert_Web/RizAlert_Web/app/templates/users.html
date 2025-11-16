@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RizAlert - User Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+     <link rel="stylesheet" href="/static/css/sidebar.css">
+     <link rel="stylesheet" href="/static/css/user.css">
+   
+</head>
+<body class="bg-base-200">
+    <div class="drawer lg:drawer-open">
+        <input id="drawer-toggle" type="checkbox" class="drawer-toggle" />
+        <!-- Main Content -->
+        <div class="drawer-content flex flex-col">
+            <!-- Navbar -->
+            <div class="navbar bg-red-900 shadow-lg">
+                <div class="flex-none lg:hidden">
+                    <label for="drawer-toggle" class="btn btn-square btn-ghost">
+                        <i class="fas fa-bars text-white text-xl"></i>
+                    </label>
+                </div>
+                <div class="flex-1">
+                    <h1 class="text-xl font-bold text-white">User Management</h1>
+                </div>
+                <div class="flex-none">
+                    <!-- changed: gradient blue Add User button -->
+                    <button class="btn mr-4 text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-md hover:shadow-lg border-0 transition-transform transform hover:-translate-y-0.5" onclick="openAddUserModal()" aria-label="Add User">
+                        <i class="fas fa-plus mr-2"></i>Add User
+                    </button>
+                    <div class="dropdown dropdown-end">
+                        <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
+                            <div class="w-10 rounded-full">
+                                <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                            </div>
+                        </div>
+                        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+                            <li><a href="/admin/profile"><i class="fas fa-user mr-2"></i>Profile</a></li>
+                            <li><a href="/admin/logout"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <!-- User Management Content -->
+            <div class="p-6">
+                <!-- Search and Filter -->
+                <div class="card bg-base-100 shadow-xl mb-6">
+                    <div class="card-body">
+                        <div class="flex flex-col md:flex-row gap-4">
+                            <div class="form-control flex-1">
+                                <input type="text" placeholder="Search users..." class="input input-bordered" id="searchInput" oninput="filterUsers()"/>
+                            </div>
+                            <select class="select select-bordered" id="roleFilter" onchange="filterUsers()">
+                                <option value="">All Roles</option>
+                                <option value="citizen">Citizen</option>
+                                <option value="admin">Admin</option>
+                                <option value="responder">Responder</option>
+                            </select>
+                            <select class="select select-bordered" id="barangayFilter" onchange="filterUsers()">
+                                <option value="">All Barangays</option>
+                                <option value="adela">Adela</option>
+                                <option value="aguas">Aguas</option>
+                                <option value="magsikap">Magsikap</option>
+                                <option value="malawaan">Malawaan</option>
+                                <option value="rizal">Rizal</option>
+                                <option value="manoot">Manoot</option>
+                                <option value="pitogo">Pitogo</option>
+                                <option value="salvacion">Salvacion</option>
+                                <option value="san pedro">San Pedro</option>
+                                <option value="sto nino">Sto Nino</option>
+                                <option value="rumbang">Rumbang</option>
+                            </select>
+                            <select class="select select-bordered" id="statusFilter" onchange="filterUsers()">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <!-- Users Table -->
+                <div class="bg-base-100 rounded-xl shadow-md overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table id="usersTable" class="min-w-full divide-y divide-gray-100">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">User</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Role</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Barangay</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Phone</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-100">
+                                {% for user in users %}
+                                <tr class="group hover:bg-gray-50 transition"
+                                    data-username="{{ user.username }}"
+                                    data-email="{{ user.email }}"
+                                    data-role="{{ user.role|lower }}"
+                                    data-status="{{ user.status|default('Active') }}"
+                                    data-barangay="{{ user.barangay|default('adela')|lower }}"
+                                    data-phone="{{ user.phone or user.phone_number or user.phoneNumber or '' }}">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center gap-4">
+                                            <div class="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                                                <img class="w-full h-full object-cover" src="{{ user.profile_image if user  else 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.username }}" alt="{{ user.fullName }}" />
+                                            </div>
+                                            <div class="min-w-0">
+                                                <div class="text-sm font-semibold text-gray-800 truncate">{{ user.fullName }}</div>
+                                                <div class="text-xs text-gray-500 truncate">{{ user.email }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="text-sm text-gray-700 font-medium">{{ user.role|title }}</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-700">{{ user.barangay|default('Adela')|title }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                                            {% if user.status|lower == 'active' or not user.status %}bg-green-50 text-green-700
+                                            {% else %}bg-red-50 text-red-700
+                                            {% endif %}">
+                                            {% if user.status|lower == 'active' or not user.status %}
+                                                <i class="fas fa-circle text-[8px] mr-2 text-green-500"></i>
+                                            {% else %}
+                                                <i class="fas fa-circle text-[8px] mr-2 text-red-500"></i>
+                                            {% endif %}
+                                            <span class="capitalize">{{ user.status|default('Active') }}</span>
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-700">
+                                            {{ user.phone or user.phone_number or user.phoneNumber or 'N/A' }}
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                        <div class="inline-flex items-center">
+                                            <div class="dropdown dropdown-end">
+                                                <div tabindex="0" role="button" class="btn btn-ghost btn-xs">
+                                                    <i class="fas fa-ellipsis-v"></i>
+                                                </div>
+                                                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+                                                    <li><a onclick="openEditUserModal('{{ user.id }}')"><i class="fas fa-edit mr-2"></i>Edit</a></li>
+                                                    
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">No users found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+       <!-- Sidebar (modern) -->
+        <div class="drawer-side">
+            <label for="drawer-toggle" aria-label="close sidebar" class="drawer-overlay"></label>
+            <aside class="min-h-full w-64 sidebar-modern">
+                <div class="p-4">
+                    <div class="sidebar-profile">
+                        <div class="avatar">
+                            <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                        </div>
+                        <div class="meta">
+                            <div class="name">{{ current_user.fullName if current_user else 'Administrator' }}</div>
+                            <div class="sub">{{ current_user.email if current_user else 'admin@local' }}</div>
+                        </div>
+                    </div>
+                    <ul class="menu p-0 w-full">
+                        <li><a href="/" class="nav-link"><i class="fas fa-home nav-icon"></i><span>Home</span></a></li>
+                        <li><a href="/users" class="active nav-link"><i class="fas fa-users nav-icon"></i><span>Users</span></a></li>
+                        <li><a href="/reports" class="nav-link"><i class="fas fa-chart-bar nav-icon"></i><span>Reports</span></a></li>
+                        <li><a href="/sirens" class="nav-link"><i class="fas fa-volume-up nav-icon"></i><span>IoT Siren</span></a></li>
+                        <li class="menu-title text-white">Emergency</li>
+                        <li><a href="/emergencies" class="nav-link"><i class="fas fa-exclamation-triangle nav-icon"></i><span>Emergencies</span></a></li>
+                        <li><a href="/alerts" class=" nav-link"><i class="fas fa-bullhorn nav-icon"></i><span>Emergency Alerts</span></a></li>
+                        <li><a href="/map" class=" nav-link"><i class="fas fa-map-marked-alt nav-icon"></i><span>Incident Map</span></a></li>
+                        <li><a href="/weather" class=" nav-link"><i class="fas fa-cloud-sun nav-icon"></i><span>Weather Map</span></a></li>
+                        <li class="menu-title text-white">Settings</li>
+                        <li><a href="javascript:void(0)" onclick="showNotifications()" class="nav-link"><i class="fas fa-bell nav-icon"></i><span>Notifications</span></a></li>
+                        <li><a href="/configuration" class="nav-link"><i class="fas fa-cog nav-icon"></i><span>Configuration</span></a></li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+    <!-- Add User Modal -->
+    <dialog id="addUserModal" class="modal">
+        <div class="modal-box w-11/12 max-w-3xl">
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                <i class="fas fa-user-plus text-primary"></i>
+                Add New User
+            </h3>
+            <form id="addUserForm" onsubmit="submitAddUser(event)">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Username *</span>
+                        </label>
+                        <input type="text" name="username" placeholder="Enter username" class="input input-bordered" required />
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Email *</span>
+                        </label>
+                        <input type="email" name="email" placeholder="user@example.com" class="input input-bordered" required />
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Full Name *</span>
+                        </label>
+                        <input type="text" name="fullName" placeholder="John Doe" class="input input-bordered" required />
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Password *</span>
+                        </label>
+                        <div class="input-with-toggle">
+                            <input id="addPassword" type="password" name="password" placeholder="Enter password (min 6 chars)" class="input input-bordered" required minlength="6" />
+                            <button type="button" class="pw-toggle-btn" aria-pressed="false" aria-label="Toggle password visibility" data-target="addPassword" onclick="togglePassword(this)">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- NEW: Phone field for Add User -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Phone</span>
+                        </label>
+                        <input type="tel" name="phone" placeholder="+63 912 345 6789" class="input input-bordered" />
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Role *</span>
+                        </label>
+                        <select name="role" class="select select-bordered" required>
+                            <option value="">Select role</option>
+                            <option value="citizen">Citizen</option>
+                            <option value="admin">Admin</option>
+                            <option value="responder">Responder</option>
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Status *</span>
+                        </label>
+                        <select name="status" class="select select-bordered" required>
+                            <option value="ACTIVE" selected>Active</option>
+                            <option value="INACTIVE">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Barangay *</span>
+                        </label>
+                        <select name="barangay" class="select select-bordered" required>
+                            <option value="">Select barangay</option>
+                            <option value="adela">Adela</option>
+                            <option value="aguas">Aguas</option>
+                            <option value="magsikap">Magsikap</option>
+                            <option value="malawaan">Malawaan</option>
+                            <option value="rizal">Rizal</option>
+                            <option value="manoot">Manoot</option>
+                            <option value="pitogo">Pitogo</option>
+                            <option value="salvacion">Salvacion</option>
+                            <option value="san pedro">San Pedro</option>
+                            <option value="sto nino">Sto Nino</option>
+                            <option value="rumbang">Rumbang</option>
+                        </select>
+                    </div>
+                    <div class="form-control md:col-span-2">
+                        <label class="label">
+                            <span class="label-text">Department</span>
+                        </label>
+                        <input type="text" name="department" placeholder="e.g., Emergency Response, Fire Department" class="input input-bordered" />
+                    </div>
+                    <div class="form-control md:col-span-2">
+                        <label class="label">
+                            <span class="label-text">Address</span>
+                        </label>
+                        <textarea name="address" placeholder="Enter full address" class="textarea textarea-bordered h-20"></textarea>
+                    </div>
+                    <div class="form-control md:col-span-2">
+                        <label class="label">
+                            <span class="label-text">Profile Image URL</span>
+                        </label>
+                        <input type="url" name="profile_image" placeholder="https://example.com/profile.jpg" class="input input-bordered" />
+                        <label class="label">
+                            <span class="label-text-alt">Leave blank to use default avatar</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-action">
+                    <button type="button" class="btn" onclick="closeAddUserModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus mr-2"></i>Add User
+                    </button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+    <!-- Edit User Modal -->
+    <dialog id="editUserModal" class="modal">
+        <div class="modal-box w-11/12 max-w-3xl">
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                <i class="fas fa-user-edit text-primary"></i>
+                Edit User
+            </h3>
+            <form id="editUserForm" onsubmit="submitEditUser(event)">
+                <input type="hidden" name="id" id="editUserId">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Username *</span>
+                        </label>
+                        <input type="text" name="username" id="editUsername" placeholder="Username" class="input input-bordered" required />
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Email *</span>
+                        </label>
+                        <input type="email" name="email" id="editEmail" placeholder="Email" class="input input-bordered" required />
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Full Name *</span>
+                        </label>
+                        <input type="text" name="fullName" id="editFullName" placeholder="Full Name" class="input input-bordered" required />
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Password</span>
+                        </label>
+                        <div class="input-with-toggle">
+                            <input type="password" name="password" id="editPassword" placeholder="Leave blank to keep unchanged" class="input input-bordered" minlength="8" />
+                            <button type="button" class="pw-toggle-btn" aria-pressed="false" aria-label="Toggle password visibility" data-target="editPassword" onclick="togglePassword(this)">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Role *</span>
+                        </label>
+                        <select name="role" id="editRole" class="select select-bordered" required>
+                            <option value="citizen">Citizen</option>
+                            <option value="admin">Admin</option>
+                            <option value="responder">Responder</option>
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Status *</span>
+                        </label>
+                        <select name="status" id="editStatus" class="select select-bordered" required>
+                            <option value="ACTIVE">Active</option>
+                            <option value="INACTIVE">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Barangay *</span>
+                        </label>
+                        <select name="barangay" id="editBarangay" class="select select-bordered" required>
+                            <option value="adela">Adela</option>
+                            <option value="aguas">Aguas</option>
+                            <option value="magsikap">Magsikap</option>
+                            <option value="malawaan">Malawaan</option>
+                            <option value="rizal">Rizal</option>
+                            <option value="manoot">Manoot</option>
+                            <option value="pitogo">Pitogo</option>
+                            <option value="salvacion">Salvacion</option>
+                            <option value="san pedro">San Pedro</option>
+                            <option value="sto nino">Sto Nino</option>
+                            <option value="rumbang">Rumbang</option>
+                        </select>
+                    </div>
+                    <div class="form-control md:col-span-2">
+                        <label class="label">
+                            <span class="label-text">Department</span>
+                        </label>
+                        <input type="text" name="department" id="editDepartment" placeholder="Department" class="input input-bordered" />
+                    </div>
+                    <div class="form-control md:col-span-2">
+                        <label class="label">
+                            <span class="label-text">Address</span>
+                        </label>
+                        <textarea name="address" id="editAddress" placeholder="Address" class="textarea textarea-bordered h-20"></textarea>
+                    </div>
+                    <div class="form-control md:col-span-2">
+                        <label class="label">
+                            <span class="label-text">Profile Image URL</span>
+                        </label>
+                        <input type="url" name="profile_image" id="editProfileImage" placeholder="https://example.com/profile.jpg" class="input input-bordered" />
+                    </div>
+                    <!-- NEW: Phone field for Edit User -->
+                    <div class="form-control md:col-span-2">
+                        <label class="label">
+                            <span class="label-text">Phone</span>
+                        </label>
+                        <input type="tel" name="phone" id="editPhone" placeholder="+63 912 345 6789" class="input input-bordered" />
+                    </div>
+                </div>
+                <div class="modal-action w-full flex justify-end">
+    <button type="button" class="btn" onclick="closeEditUserModal()">Cancel</button>
+    <button type="submit" class="btn btn-gradient-red">
+        <i class="fas fa-save mr-2"></i>Save Changes
+    </button>
+</div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+    <script>
+        // Modal functions
+        function openAddUserModal() {
+            document.getElementById('addUserModal').showModal();
+        }
+
+        function closeAddUserModal() {
+            document.getElementById('addUserModal').close();
+            document.getElementById('addUserForm').reset();
+        }
+
+        function openEditUserModal(userId) {
+            fetch(`/api/users/${userId}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('editUserId').value = data.id;
+                    document.getElementById('editUsername').value = data.username;
+                    document.getElementById('editEmail').value = data.email;
+                    document.getElementById('editFullName').value = data.fullName;
+                    document.getElementById('editAddress').value = data.address || '';
+                    document.getElementById('editDepartment').value = data.department || '';
+                    document.getElementById('editRole').value = data.role || '';
+                    document.getElementById('editStatus').value = data.status || '';
+                    document.getElementById('editBarangay').value = data.barangay || '';
+                    document.getElementById('editProfileImage').value = data.profile_image || '';
+                    document.getElementById('editPassword').value = '';
+                    document.getElementById('editUserModal').showModal();
+                })
+                .catch(error => {
+                    console.error('Error fetching user:', error);
+                    alert('Failed to load user data');
+                });
+        }
+
+        function closeEditUserModal() {
+            document.getElementById('editUserModal').close();
+            document.getElementById('editUserForm').reset();
+        }
+
+        function resetPassword(userId) {
+            if (confirm('Reset password for this user?')) {
+                fetch(`/api/users/${userId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: 'defaultpassword' })
+                })
+                .then(response => response.json())
+                .then(data => alert(data.message))
+                .catch(error => alert('Error resetting password: ' + error));
+            }
+        }
+
+        function toggleUserStatus(userId) {
+            // Placeholder: User model needs a status field to implement this
+            alert('Toggle status not implemented. Add status field to User model.');
+        }
+
+        // Form submission for adding user
+        function submitAddUser(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = {};
+            
+            // Build data object, excluding empty fields
+            for (let [key, value] of formData.entries()) {
+                if (value.trim() !== '') {
+                    data[key] = value;
+                }
+            }
+            
+            // Validate required fields
+            if (!data.username || !data.email || !data.fullName || !data.password || !data.role || !data.status || !data.barangay) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.message) {
+                    alert(result.message);
+                    closeAddUserModal();
+                    window.location.reload();
+                } else if (result.error) {
+                    alert('Error: ' + result.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to add user. Please try again.');
+            });
+        }
+
+        // Form submission for editing user
+        function submitEditUser(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = {};
+            const userId = formData.get('id');
+            
+            console.log('DEBUG: Submitting edit user form for ID:', userId);
+            
+            // Build data object, excluding empty fields and id
+            for (let [key, value] of formData.entries()) {
+                if (key !== 'id' && value.trim() !== '') {
+                    data[key] = value;
+                }
+            }
+            
+            // Remove password if it's empty (keep existing)
+            if (!data.password) {
+                delete data.password;
+            }
+            
+            console.log('DEBUG: User update data:', data);
+            
+            fetch(`/api/users/${userId}`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                console.log('DEBUG: Response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(result => {
+                console.log('DEBUG: Update result:', result);
+                if (result.message) {
+                    alert('✅ ' + result.message);
+                    closeEditUserModal();
+                    window.location.reload();
+                } else if (result.error) {
+                    alert('❌ Error: ' + result.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating user:', error);
+                alert('❌ Failed to update user. Please check the console for details and try again.');
+            });
+        }
+
+        // Toggle password visibility for inputs with data-target
+        function togglePassword(btn) {
+            try {
+                const id = btn.getAttribute('data-target');
+                const input = document.getElementById(id);
+                if (!input) return;
+                const icon = btn.querySelector('i');
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    btn.setAttribute('aria-pressed', 'true');
+                    if (icon) { icon.className = 'fas fa-eye-slash'; }
+                } else {
+                    input.type = 'password';
+                    btn.setAttribute('aria-pressed', 'false');
+                    if (icon) { icon.className = 'fas fa-eye'; }
+                }
+            } catch (e) {
+                console.error('togglePassword error', e);
+            }
+        }
+
+        // Filter and search functionality
+        function filterUsers() {
+            const searchInput = document.getElementById('searchInput').value.toLowerCase();
+            const roleFilter = document.getElementById('roleFilter').value.toLowerCase();
+            const barangayFilter = document.getElementById('barangayFilter').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
+            const rows = document.querySelectorAll('#usersTable tbody tr');
+
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                // Skip if this is the "no users found" row
+                if (row.children.length === 1 && row.children[0].getAttribute('colspan') === '6') {
+                    return;
+                }
+                
+                const username = (row.dataset.username || '').toLowerCase();
+                const email = (row.dataset.email || '').toLowerCase();
+                const role = (row.dataset.role || '').toLowerCase();
+                const barangay = (row.dataset.barangay || '').toLowerCase();
+                const status = (row.dataset.status || '').toLowerCase();
+
+                const matchesSearch = username.includes(searchInput) || email.includes(searchInput);
+                const matchesRole = !roleFilter || role === roleFilter;
+                const matchesBarangay = !barangayFilter || barangay === barangayFilter;
+                const matchesStatus = !statusFilter || status === statusFilter;
+
+                const shouldShow = matchesSearch && matchesRole && matchesBarangay && matchesStatus;
+                row.style.display = shouldShow ? '' : 'none';
+                
+                if (shouldShow) visibleCount++;
+            });
+            
+            // Handle no results
+            const tbody = document.querySelector('#usersTable tbody');
+            const existingNoResult = tbody.querySelector('.no-results-row');
+            
+            if (visibleCount === 0) {
+                if (!existingNoResult) {
+                    const noResultRow = document.createElement('tr');
+                    noResultRow.className = 'no-results-row';
+                    noResultRow.innerHTML = '<td colspan="6" class="text-center">No users found matching the current filters.</td>';
+                    tbody.appendChild(noResultRow);
+                }
+            } else {
+                if (existingNoResult) {
+                    existingNoResult.remove();
+                }
+            }
+        }
+    </script>
+    <script src="/static/js/notifications.js"></script>
+</body>
+</html>

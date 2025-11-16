@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RizAlert - Windy Map View</title>
+
+  <!-- DaisyUI + Tailwind -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+ <link rel="stylesheet" href="/static/css/sidebar.css">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+        #windy {
+          width: 100%;
+          height: 100%%;
+          border-radius: 8px;
+          overflow: hidden;
+         position: relative; /* needed for overlay */
+        }
+        #emergency-list { max-height: 200px; overflow-y: auto; }
+        /* Drawing overlay and toolbar */
+        .draw-canvas {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+          cursor: crosshair;
+          z-index: 20;
+          touch-action: none;
+        }
+        .draw-canvas.inactive { pointer-events: none; cursor: default; }
+        .draw-toolbar {
+          position: absolute;
+          left: 50%;
+          top: 12px;
+          transform: translateX(-50%);
+          z-index: 30;
+          display: flex;
+          gap: .5rem;
+          align-items: center;
+          background: rgba(255,255,255,0.06);
+          padding: 6px;
+          border-radius: 10px;
+          backdrop-filter: blur(6px);
+        }
+        .draw-toolbar .btn { padding: .4rem .6rem; border-radius: 8px; }
+        .draw-color { width:36px; height:36px; border-radius:6px; border:1px solid rgba(0,0,0,0.08); }
+        @media (max-width:640px) {
+            .draw-toolbar { top: 8px; gap: .4rem; padding:4px; }
+            .draw-color { width:30px; height:30px; }
+        }
+
+      
+
+    </style>
+</head>
+<body class="bg-base-200">
+  <div class="drawer lg:drawer-open">
+    <input id="drawer-toggle" type="checkbox" class="drawer-toggle" />
+    <!-- Main Content -->
+    <div class="drawer-content flex flex-col">
+      <!-- Navbar -->
+      <div class="navbar bg-red-900 shadow-lg">
+        <div class="flex-none lg:hidden">
+          <label for="drawer-toggle" class="btn btn-square btn-ghost">
+            <i class="fas fa-bars text-white text-xl"></i>
+          </label>
+        </div>
+        <div class="flex-1">
+          <h1 class="text-xl font-bold text-white">Map View - Windy Weather</h1>
+        </div>
+        <div class="flex-none">
+          <div class="dropdown dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
+              <div class="w-10 rounded-full">
+                <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+              </div>
+            </div>
+            <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+              <li><a href="#"><i class="fas fa-user mr-2"></i>Profile</a></li>
+              <li><a href="#"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map Content -->
+      <div class="p-6">
+        <div class="card bg-base-100 shadow-xl">
+          <div class="card-body">
+            <h2 class="card-title mb-4">Live Weather Map (Windy.com)</h2>
+            <!-- Windy Embed -->
+            <div id="windy">
+              <iframe 
+                width="100%" 
+                height="600" 
+                src="https://embed.windy.com/embed2.html?lat=12.48&lon=121.00&detailLat=12.48&detailLon=121.00&width=100%&height=600&zoom=8&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=true&calendar=12&pressure=true&type=map&location=coordinates&detail=true&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1" 
+                frameborder="0">
+              </iframe>
+              <!-- Drawing overlay and toolbar -->
+              <canvas id="windyCanvas" class="draw-canvas inactive" aria-hidden="true"></canvas>
+              <div class="draw-toolbar" role="toolbar" aria-label="Drawing tools">
+                  <button id="penToggle" class="btn btn-sm" title="Toggle Pen"><i class="fas fa-pen"></i></button>
+                  <input id="penColor" class="draw-color" type="color" value="#ff0000" title="Pen color" />
+                  <button id="clearCanvas" class="btn btn-sm btn-ghost" title="Clear"><i class="fas fa-eraser"></i></button>
+              </div>
+            </div>
+
+            <!-- Optional Info Section -->
+            <div class="mt-4">
+              <h3 class="text-lg font-semibold mb-2">Weather Alert Updates</h3>
+              <div class="alert alert-info">
+                <i class="fas fa-cloud-sun-rain mr-2"></i>
+                <span>View live wind, rain, and temperature data for Rizal and nearby areas using Windy.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+   <!-- Sidebar (modern) -->
+        <div class="drawer-side">
+            <label for="drawer-toggle" aria-label="close sidebar" class="drawer-overlay"></label>
+            <aside class="min-h-full w-64 sidebar-modern">
+                <div class="p-4">
+                    <div class="sidebar-profile">
+                        <div class="avatar">
+                            <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                        </div>
+                        <div class="meta">
+                            <div class="name">{{ current_user.fullName if current_user else 'Administrator' }}</div>
+                            <div class="sub">{{ current_user.email if current_user else 'admin@local' }}</div>
+                        </div>
+                    </div>
+                    <ul class="menu p-0 w-full">
+                        <li><a href="/" class="nav-link"><i class="fas fa-home nav-icon"></i><span>Home</span></a></li>
+                        <li><a href="/users" class="nav-link"><i class="fas fa-users nav-icon"></i><span>Users</span></a></li>
+                        <li><a href="/reports" class="nav-link"><i class="fas fa-chart-bar nav-icon"></i><span>Reports</span></a></li>
+                        <li><a href="/sirens" class="nav-link"><i class="fas fa-volume-up nav-icon"></i><span>IoT Siren</span></a></li>
+                        <li class="menu-title text-white">Emergency</li>
+                        <li><a href="/emergencies" class="nav-link"><i class="fas fa-exclamation-triangle nav-icon"></i><span>Emergencies</span></a></li>
+                        <li><a href="/alerts" class=" nav-link"><i class="fas fa-bullhorn nav-icon"></i><span>Emergency Alerts</span></a></li>
+                        <li><a href="/map" class=" nav-link"><i class="fas fa-map-marked-alt nav-icon"></i><span>Incident Map</span></a></li>
+                        <li><a href="/weather" class="active nav-link"><i class="fas fa-cloud-sun nav-icon"></i><span>Weather Map</span></a></li>
+                        <li class="menu-title text-white">Settings</li>
+                        <li><a href="javascript:void(0)" onclick="showNotifications()" class="nav-link"><i class="fas fa-bell nav-icon"></i><span>Notifications</span></a></li>
+                        <li><a href="/configuration" class="nav-link"><i class="fas fa-cog nav-icon"></i><span>Configuration</span></a></li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+
+  <script>
+    // Drawing overlay for Windy iframe container
+    (function() {
+        const canvas = document.getElementById('windyCanvas');
+        const penToggle = document.getElementById('penToggle');
+        const penColor = document.getElementById('penColor');
+        const clearBtn = document.getElementById('clearCanvas');
+        const container = document.getElementById('windy');
+        let ctx, drawing = false, last = null, penActive = false, lineWidth = 3;
+
+        function resizeCanvas() {
+            if (!canvas || !container) return;
+            const rect = container.getBoundingClientRect();
+            // adjust for devicePixelRatio for crisp lines
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = Math.round(rect.width * dpr);
+            canvas.height = Math.round(rect.height * dpr);
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            if (!ctx) ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        function setPenActive(active) {
+            penActive = active;
+            if (active) {
+                canvas.classList.remove('inactive');
+                penToggle.classList.add('btn-primary');
+            } else {
+                canvas.classList.add('inactive');
+                penToggle.classList.remove('btn-primary');
+            }
+        }
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            if (e.touches) {
+                const t = e.touches[0];
+                return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+            } else {
+                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            }
+        }
+
+        function pointerDown(e) {
+            if (!penActive) return;
+            e.preventDefault();
+            drawing = true;
+            last = getPos(e);
+        }
+
+        function pointerMove(e) {
+            if (!drawing || !penActive) return;
+            e.preventDefault();
+            const p = getPos(e);
+            ctx.strokeStyle = penColor.value || '#ff0000';
+            ctx.lineWidth = lineWidth;
+            ctx.beginPath();
+            ctx.moveTo(last.x, last.y);
+            ctx.lineTo(p.x, p.y);
+            ctx.stroke();
+            last = p;
+        }
+
+        function pointerUp(e) {
+            if (!penActive) return;
+            drawing = false;
+            last = null;
+        }
+
+        function clearCanvas() {
+            if (!ctx) return;
+            const rect = canvas.getBoundingClientRect();
+            ctx.clearRect(0, 0, rect.width, rect.height);
+        }
+
+        // Events
+        window.addEventListener('resize', resizeCanvas);
+        // initialize after DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            resizeCanvas();
+            // mouse
+            canvas.addEventListener('mousedown', pointerDown);
+            window.addEventListener('mousemove', pointerMove);
+            window.addEventListener('mouseup', pointerUp);
+            // touch
+            canvas.addEventListener('touchstart', pointerDown, { passive: false });
+            canvas.addEventListener('touchmove', pointerMove, { passive: false });
+            canvas.addEventListener('touchend', pointerUp);
+
+            penToggle.addEventListener('click', () => setPenActive(!penActive));
+            clearBtn.addEventListener('click', clearCanvas);
+            // default pen off
+            setPenActive(false);
+        });
+    })();
+    </script>
+  <script src="/static/js/notifications.js"></script>
+</body>
+</html>

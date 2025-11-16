@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RizAlert - Reports</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/sidebar.css">
+    <link rel="stylesheet" href="/static/css/reports.css">
+    
+</head>
+<body class="bg-base-200">
+    <div class="drawer lg:drawer-open">
+        <input id="drawer-toggle" type="checkbox" class="drawer-toggle" />
+        <!-- Main Content -->
+        <div class="drawer-content flex flex-col">
+            <!-- Navbar -->
+            <div class="navbar bg-red-900 shadow-lg">
+                <div class="flex-none lg:hidden">
+                    <label for="drawer-toggle" class="btn btn-square btn-ghost">
+                        <i class="fas fa-bars text-white text-xl"></i>
+                    </label>
+                </div>
+                <div class="flex-1">
+                    <h1 class="text-xl font-bold text-white">Reports & Analytics</h1>
+                </div>
+                <div class="flex-none">
+                    <div class="dropdown dropdown-end mr-4">
+                        <label tabindex="0"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white shadow-md transition transform hover:-translate-y-0.5
+                                   bg-gradient-to-r from-red-500 to-red-700 hover:from-re-600 hover:to-red-800">
+                            <i class="fas fa-download mr-2"></i>Export Report
+                        </label>
+                        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 mt-2">
+                            <li class="menu-title"><span>CSV Exports</span></li>
+                            <li><a onclick="exportData('csv', 'users')"><i class="fas fa-file-csv mr-2"></i>Users CSV</a></li>
+                            <li><a onclick="exportData('csv', 'emergencies')"><i class="fas fa-file-csv mr-2"></i>Emergencies CSV</a></li>
+                            <li><a onclick="exportData('csv', 'alerts')"><i class="fas fa-file-csv mr-2"></i>Alerts CSV</a></li>
+                            <li class="menu-title"><span>PDF Reports</span></li>
+                            <li><a onclick="exportData('pdf', 'users')"><i class="fas fa-file-pdf mr-2"></i>Users PDF</a></li>
+                            <li><a onclick="exportData('pdf', 'emergencies')"><i class="fas fa-file-pdf mr-2"></i>Emergencies PDF</a></li>
+                            <li><a onclick="exportData('pdf', 'alerts')"><i class="fas fa-file-pdf mr-2"></i>Alerts PDF</a></li>
+                            <li><a onclick="exportData('pdf', 'complete')"><i class="fas fa-file-pdf mr-2"></i>Complete Report PDF</a></li>
+                        </ul>
+                    </div>
+                    <div class="dropdown dropdown-end">
+                        <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
+                            <div class="w-10 rounded-full">
+                                <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                            </div>
+                        </div>
+                        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+                            <li><a href="/admin/profile"><i class="fas fa-user mr-2"></i>Profile</a></li>
+                            <li><a href="/admin/logout"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <!-- Reports Content -->
+            <div class="p-6">
+                <!-- Report Filters -->
+                <div class="card bg-base-100 shadow-xl mb-6">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4">Report Filters</h2>
+                        <form method="GET" action="/reports" id="filterForm">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="form-control">
+                                    <label class="label">
+                                        <span class="label-text">Municipality</span>
+                                    </label>
+                                    <input type="text" name="municipality" value="{{ filter_municipality }}" class="input input-bordered" readonly>
+                                </div>
+                                <div class="form-control">
+                                    <label class="label">
+                                        <span class="label-text">Barangay</span>
+                                    </label>
+                                    <select name="barangay" class="select select-bordered" onchange="this.form.submit()">
+                                        <option value="">All Barangays</option>
+                                        {% for barangay in barangays %}
+                                        <option value="{{ barangay }}" {% if filter_barangay == barangay %}selected{% endif %}>
+                                            {{ barangay }} ({{ barangay_stats.get(barangay, 0) }} users)
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-control flex justify-end items-end">
+                                    <button
+                                     type="submit"
+                                        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white shadow-md transition transform hover:-translate-y-0.5
+                                         bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800">
+                                     <i class="fas fa-filter mr-2"></i>
+                                     Apply Filter
+                                     </button>
+                                    {% if filter_barangay %}
+                                    <a href="/reports" class="btn btn-outline btn-sm mt-2">
+                                        <i class="fas fa-times mr-2"></i>Clear Filter
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <!-- Summary Statistics -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+                    <div class="stat bg-base-100 rounded-lg shadow">
+                        <div class="stat-figure text-primary">
+                            <i class="fas fa-chart-line text-3xl"></i>
+                        </div>
+                        <div>
+                            <div class="stat-title">Overall Incidents</div>
+                            <div class="stat-value text-error">{{ overall_emergencies }}</div>
+                            <div class="stat-desc">All time reported</div>
+                        </div>
+                    </div>
+
+                    <div class="stat bg-base-100 rounded-lg shadow">
+                        <div class="stat-figure text-error">
+                            <i class="fas fa-exclamation-triangle text-3xl"></i>
+                        </div>
+                        <div>
+                            <div class="stat-title">Total Emergencies</div>
+                            <div class="stat-value text-error">{{ total_emergencies }}</div>
+                            <div class="stat-desc">{{ active_count }} currently active</div>
+                        </div>
+                    </div>
+
+                    <div class="stat bg-base-100 rounded-lg shadow">
+                        <div class="stat-figure text-success">
+                            <i class="fas fa-check-circle text-3xl"></i>
+                        </div>
+                        <div>
+                            <div class="stat-title">Resolved Cases</div>
+                            <div class="stat-value text-success">{{ resolved_count }}</div>
+                            <div class="stat-desc">{{ ((resolved_count / total_emergencies * 100) if total_emergencies > 0 else 0)|round(1) }}% resolution rate</div>
+                        </div>
+                    </div>
+
+                    <div class="stat bg-base-100 rounded-lg shadow">
+                        <div class="stat-figure text-warning">
+                            <i class="fas fa-users text-3xl"></i>
+                        </div>
+                        <div>
+                            <div class="stat-title">Total Users</div>
+                            <div class="stat-value text-warning">{{ total_users }}</div>
+                            <div class="stat-desc">{{ active_users }} active users</div>
+                        </div>
+                    </div>
+
+                    <div class="stat bg-base-100 rounded-lg shadow">
+                        <div class="stat-figure text-info">
+                            <i class="fas fa-bell text-3xl"></i>
+                        </div>
+                        <div>
+                            <div class="stat-title">Emergency Alerts</div>
+                            <div class="stat-value text-info">{{ total_alerts }}</div>
+                            <div class="stat-desc">System-wide alerts</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div class="card bg-base-100 shadow-xl">
+                        <div class="card-body">
+                            <h2 class="card-title">Emergency Trends (Last 6 Months)</h2>
+                            <div style="height: 300px; position: relative;">
+                                <canvas id="trendsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card bg-base-100 shadow-xl">
+                        <div class="card-body">
+                            <h2 class="card-title">Emergency Types Distribution</h2>
+                            <div style="height: 300px; position: relative;">
+                                <canvas id="caseTypesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div class="card bg-base-100 shadow-xl">
+                        <div class="card-body">
+                            <h2 class="card-title">User Roles Distribution</h2>
+                            <div style="height: 300px; position: relative;">
+                                <canvas id="rolesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card bg-base-100 shadow-xl">
+                        <div class="card-body">
+                            <h2 class="card-title">Emergency Status Breakdown</h2>
+                            <div style="height: 300px; position: relative;">
+                                <canvas id="statusChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Barangay Distribution Chart -->
+                <div class="card bg-base-100 shadow-xl mb-6">
+                    <div class="card-body">
+                        <h2 class="card-title">Users by Barangay - Municipality of Rizal</h2>
+                        <div style="height: 400px; position: relative;">
+                            <canvas id="barangayChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <!-- Detailed Report Table -->
+                <div class="card bg-base-100 shadow-xl">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4">Recent Emergencies Report</h2>
+                        <div class="overflow-x-auto">
+                            <table class="table table-zebra">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Location</th>
+                                        <th>Barangay</th>
+                                        <th>Reported By</th>
+                                        <th>Status</th>
+                                        <th>Responders</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for emergency in emergencies[:20] %}
+                                    <tr>
+                                        <td>{{ emergency.created_at.strftime('%Y-%m-%d %H:%M') if emergency.created_at else 'N/A' }}</td>
+                                        <td>
+                                            {% set type_colors = {
+                                                'FIRE': '',
+                                                'MEDICAL': '',
+                                                'CRIME': '',
+                                                'NATURAL_DISASTER': '',
+                                                'ACCIDENT': '',
+                                                'RESCUE': '',
+                                                'PUBLIC_SAFETY': ''
+                                            } %}
+                                            <span class="badge {{ type_colors.get(emergency.case_type, 'badge-ghost') }}">
+                                                {{ emergency.case_type.replace('_', ' ') if emergency.case_type else 'N/A' }}
+                                            </span>
+                                        </td>
+                                        <td>{{ emergency.location_text[:50] if emergency.location_text else 'N/A' }}</td>
+                                        <td>
+                                            <span class="badge badge-outline">{{ emergency.user_barangay }}</span>
+                                        </td>
+                                        <td>{{ emergency.reported_by }}</td>
+                                        <td>
+                                            {% set status_colors = {
+                                                'PENDING': '',
+                                                'IN_PROGRESS': '',
+                                                'RESOLVED': ''
+                                            } %}
+                                            <span class="badge {{ status_colors.get(emergency.status, 'badge-ghost') }}">
+                                                {{ emergency.status.replace('_', ' ') if emergency.status else 'N/A' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if emergency.responders %}
+                                                <div class="">{{ emergency.responders|length }} assigned</div>
+                                            {% else %}
+                                                <span class="text-gray-400">None</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-gray-400">No emergencies found</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emergency Alerts Report Table -->
+                <div class="card bg-base-100 shadow-xl">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4">Emergency Alerts Report</h2>
+                        <div class="overflow-x-auto">
+                            <table class="table table-zebra">
+                                <thead>
+                                    <tr>
+                                        <th>Alert ID</th>
+                                        <th>Emergency Type</th>
+                                        <th>Description</th>
+                                        <th>Date Created</th>
+                                        <th>People Safe</th>
+                                        <th>People in Danger</th>
+                                        <th>People Evacuating</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for alert in alerts %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge badge-ghost">{{ alert.id[:8] }}...</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge {{ '' if alert.emergency_type == 'TYPHOON' else '' if alert.emergency_type == 'FIRE' else '' if alert.emergency_type in ['CRIME', 'FLOOD'] else '' }}">
+                                                {{ alert.emergency_type }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="max-w-md truncate" title="{{ alert.emergency_descriptions }}">
+                                                {{ alert.emergency_descriptions[:80] }}{{ '...' if alert.emergency_descriptions|length > 80 else '' }}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="text-sm">
+                                                {{ alert.date_created.strftime('%Y-%m-%d %H:%M') if alert.date_created else 'Unknown' }}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="">{{ alert.people_safe|length }}</div>
+                                        </td>
+                                        <td>
+                                            <div class="">{{ alert.people_danger|length }}</div>
+                                        </td>
+                                        <td>
+                                            <div class="">{{ alert.people_evacuating|length }}</div>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-gray-400">No emergency alerts found</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Sidebar -->
+        <div class="drawer-side">
+            <label for="drawer-toggle" aria-label="close sidebar" class="drawer-overlay"></label>
+            <aside class="min-h-full w-64 sidebar-modern">
+                <div class="p-4">
+                    <div class="sidebar-profile">
+                        <div class="avatar">
+                            <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                        </div>
+                        <div class="meta">
+                            <div class="name">{{ current_user.fullName if current_user else 'Administrator' }}</div>
+                            <div class="sub">{{ current_user.email if current_user else 'admin@local' }}</div>
+                        </div>
+                    </div>
+                    <ul class="menu p-0 w-full">
+                        <li><a href="/" class="nav-link"><i class="fas fa-home nav-icon"></i><span>Home</span></a></li>
+                        <li><a href="/users" class="nav-link"><i class="fas fa-users nav-icon"></i><span>Users</span></a></li>
+                        <li><a href="/reports" class="active nav-link"><i class="fas fa-chart-bar nav-icon"></i><span>Reports</span></a></li>
+                        <li><a href="/sirens" class="nav-link"><i class="fas fa-volume-up nav-icon"></i><span>IoT Siren</span></a></li>
+                        <li class="menu-title text-white">Emergency</li>
+                        <li><a href="/emergencies" class="nav-link"><i class="fas fa-exclamation-triangle nav-icon"></i><span>Emergencies</span></a></li>
+                        <li><a href="/alerts" class="nav-link"><i class="fas fa-bullhorn nav-icon"></i><span>Emergency Alerts</span></a></li>
+                        <li><a href="/map" class="nav-link"><i class="fas fa-map-marked-alt nav-icon"></i><span>Incident Map</span></a></li>
+                        <li><a href="/weather" class="nav-link"><i class="fas fa-cloud-sun nav-icon"></i><span>Weather Map</span></a></li>
+                        <li class="menu-title text-white">Settings</li>
+                        <li><a href="javascript:void(0)" onclick="showNotifications()" class="nav-link"><i class="fas fa-bell nav-icon"></i><span>Notifications</span></a></li>
+                        <li><a href="/configuration" class="nav-link"><i class="fas fa-cog nav-icon"></i><span>Configuration</span></a></li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </div>
+    <script>
+        // Export function
+        function exportData(format, type) {
+            const url = `/api/export/${type}/${format}`;
+            window.location.href = url;
+        }
+
+        // Trends Chart - Monthly data (red gradient)
+        const trendsCtx = document.getElementById('trendsChart').getContext('2d');
+        // create red gradient for line
+        const trendsGradient = trendsCtx.createLinearGradient(0, 0, 0, 300);
+        trendsGradient.addColorStop(0, 'rgba(239,68,68,0.18)');
+        trendsGradient.addColorStop(1, 'rgba(239,68,68,0.03)');
+
+        new Chart(trendsCtx, {
+            type: 'line',
+            data: {
+                labels: {{ monthly_data | map(attribute='month') | list | tojson }},
+                datasets: [{
+                    label: 'Total Emergencies',
+                    data: {{ monthly_data | map(attribute='count') | list | tojson }},
+                    borderColor: 'rgba(239,68,68,1)',
+                    backgroundColor: trendsGradient,
+                    pointBackgroundColor: 'rgba(239,68,68,1)',
+                    pointBorderColor: '#fff',
+                    pointHoverBorderWidth: 3,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    tension: 0.35,
+                    fill: true,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#111827',
+                        titleColor: '#fff',
+                        bodyColor: '#e5e7eb',
+                        padding: 10,
+                        cornerRadius: 8,
+                        boxPadding: 6
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#6b7280' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(15,23,42,0.06)', drawBorder: false },
+                        ticks: { color: '#6b7280', precision: 0 }
+                    }
+                },
+                elements: { point: { hoverRadius: 7 } },
+                animation: { duration: 800, easing: 'easeOutQuad' }
+            }
+        });
+
+        // Case Types Chart (Doughnut) - modernized
+        const caseTypesCtx = document.getElementById('caseTypesChart').getContext('2d');
+        // Use a concise palette (red + neutral) for consistency
+        new Chart(caseTypesCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ case_type_stats.keys() | list | tojson }},
+                datasets: [{
+                    data: {{ case_type_stats.values() | list | tojson }},
+                    /* limited palette: strong red, darker red, neutral grey (repeated to cover labels) */
+                    backgroundColor: [
+                        'rgba(239,68,68,0.94)',
+                        'rgba(185,28,28,0.88)',
+                        'rgba(156,163,175,0.88)',
+                        'rgba(156,163,175,0.7)',
+                        'rgba(156,163,175,0.6)',
+                        'rgba(156,163,175,0.5)',
+                        'rgba(156,163,175,0.4)'
+                    ],
+                    borderColor: 'rgba(255,255,255,0.08)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '55%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#6b7280', boxWidth: 12, padding: 12 }
+                    },
+                    datalabels: {
+                        color: '#ffffff',
+                        formatter: function(value, context) {
+                            const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+                            const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                            return pct + '%';
+                        },
+                        font: { weight: '600', size: 12 }
+                    },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        titleColor: '#fff',
+                        bodyColor: '#e5e7eb',
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                return label + ': ' + value;
+                            }
+                        }
+                    }
+                },
+                animation: { duration: 700, easing: 'easeOutQuart' }
+            },
+            plugins: [ChartDataLabels]
+        });
+
+        // User Roles Chart (Pie) - modern
+        const rolesCtx = document.getElementById('rolesChart').getContext('2d');
+        new Chart(rolesCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Citizens', 'Admins', 'Responders'],
+                datasets: [{
+                    data: [{{ role_stats.citizen }}, {{ role_stats.admin }}, {{ role_stats.responder }}],
+                    /* two-color approach: red + neutral variants */
+                    backgroundColor: [
+                        'rgba(239,68,68,0.92)',
+                        'rgba(185,28,28,0.88)',
+                        'rgba(156,163,175,0.8)'
+                    ],
+                    borderColor: 'rgba(255,255,255,0.06)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#6b7280', boxWidth: 12 }
+                    },
+                    datalabels: {
+                        color: '#fff',
+                        font: { weight: '600', size: 12 },
+                        formatter: function(value, context) {
+                            const total = context.dataset.data.reduce((s, v) => s + v, 0);
+                            return total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#0b1220',
+                        titleColor: '#fff',
+                        bodyColor: '#e6eef8'
+                    }
+                },
+                animation: { duration: 700 }
+            },
+            plugins: [ChartDataLabels]
+        });
+
+        // Status Chart (Bar) - modern rounded bars
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        // create red-leaning gradients for all bars (keeps palette to red + neutral)
+        const statusGradA = statusCtx.createLinearGradient(0, 0, 0, 200);
+        statusGradA.addColorStop(0, 'rgba(239,68,68,0.92)');
+        statusGradA.addColorStop(1, 'rgba(185,28,28,0.78)');
+
+        const statusGradB = statusCtx.createLinearGradient(0, 0, 0, 200);
+        statusGradB.addColorStop(0, 'rgba(219,39,39,0.9)');
+        statusGradB.addColorStop(1, 'rgba(185,28,28,0.72)');
+
+        const statusGradC = statusCtx.createLinearGradient(0, 0, 0, 200);
+        statusGradC.addColorStop(0, 'rgba(180,26,26,0.86)');
+        statusGradC.addColorStop(1, 'rgba(140,20,20,0.68)');
+
+        new Chart(statusCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Pending', 'In Progress', 'Resolved'],
+                datasets: [{
+                    label: 'Emergency Count',
+                    data: [{{ pending_count }}, {{ in_progress_count }}, {{ resolved_count }}],
+                    backgroundColor: [statusGradA, statusGradB, statusGradC],
+                    borderRadius: 10,
+                    maxBarThickness: 48
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#071025',
+                        titleColor: '#fff',
+                        bodyColor: '#e6eef8',
+                        cornerRadius: 6
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#6b7280' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(15,23,42,0.06)', drawBorder: false },
+                        ticks: { color: '#6b7280', precision: 0 }
+                    }
+                },
+                animation: { duration: 700, easing: 'easeOutCubic' }
+            }
+        });
+
+        // Barangay Distribution Chart (Bar) - modern gradient + rounded
+        const barangayChartCtx = document.getElementById('barangayChart').getContext('2d');
+        const barangayGrad = barangayChartCtx.createLinearGradient(0, 0, 0, 400);
+        barangayGrad.addColorStop(0, 'rgba(239,68,68,0.95)');
+        barangayGrad.addColorStop(1, 'rgba(185,28,28,0.65)');
+
+        new Chart(barangayChartCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ barangays | tojson }},
+                datasets: [{
+                    label: 'Number of Users',
+                    data: [
+                        {% for barangay in barangays %}
+                        {{ barangay_stats.get(barangay, 0) }}{% if not loop.last %},{% endif %}
+                        {% endfor %}
+                    ],
+                    backgroundColor: barangayGrad,
+                    borderColor: 'rgba(183,28,28,1)',
+                    borderWidth: 0,
+                    borderRadius: 8,
+                    
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: 'User Distribution Across Barangays',
+                        color: '#374151',
+                        font: { weight: '600', size: 14 }
+                    },
+                    tooltip: {
+                        backgroundColor: '#0b1220',
+                        titleColor: '#fff',
+                        bodyColor: '#e6eef8',
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#6b7280', maxRotation: 45, minRotation: 0 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(15,23,42,0.06)' },
+                        ticks: { color: '#6b7280', precision: 0 }
+                    }
+                },
+                animation: { duration: 800, easing: 'easeOutQuart' }
+            }
+        });
+    </script>
+    <script src="/static/js/notifications.js"></script>
+</body>
+</html>

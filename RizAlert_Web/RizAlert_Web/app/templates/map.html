@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RizAlert - Map View</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+     <link rel="stylesheet" href="/static/css/sidebar.css">
+     <link rel="stylesheet" href="/static/css/map.css">
+
+</head>
+<body class="bg-base-200">
+    <div class="drawer lg:drawer-open">
+        <input id="drawer-toggle" type="checkbox" class="drawer-toggle" />
+        <!-- Main Content -->
+        <div class="drawer-content flex flex-col">
+            <!-- Navbar -->
+            <div class="navbar bg-red-900 shadow-lg">
+                <div class="flex-none lg:hidden">
+                    <label for="drawer-toggle" class="btn btn-square btn-ghost">
+                        <i class="fas fa-bars text-white text-xl"></i>
+                    </label>
+                </div>
+                <div class="flex-1">
+                    <h1 class="text-xl font-bold text-white">Map View - Active Emergencies</h1>
+                </div>
+                <div class="flex-none">
+                    <div class="dropdown dropdown-end">
+                        <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
+                            <div class="w-10 rounded-full">
+                                <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                            </div>
+                        </div>
+                        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+                            <li><a href="/admin/profile"><i class="fas fa-user mr-2"></i>Profile</a></li>
+                            <li><a href="/admin/logout"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <!-- Map Content -->
+            <div class="p-6">
+                <div class="card bg-base-100 shadow-xl">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4">Emergency Map</h2>
+                        <!-- WRAP MAP so legend can be absolutely positioned -->
+                        <div id="map-container">
+                            <div id="map"></div>
+
+                            <!-- NEW: Legend placeholder (populated by JS) -->
+                            <div id="map-legend" aria-hidden="false">
+                                <div class="legend-title"><i class="fas fa-map-marker-alt"></i> Legend</div>
+                                <div id="map-legend-items">
+                                    <!-- items injected by JS -->
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Emergency List -->
+                        <div class="mt-4">
+                            <h3 class="text-lg font-semibold mb-2">Active Emergencies</h3>
+                            <div id="emergency-list" class="space-y-2">
+                                {% for emergency in emergencies %}
+                                {% if emergency.latitude and emergency.longitude %}
+                                <div class="card bg-base-200 p-4 cursor-pointer hover:bg-base-300"
+                                     onclick="showEmergencyDetails('{{ emergency.id }}', {{ emergency.latitude }}, {{ emergency.longitude }})">
+                                    <div class="flex items-start gap-3">
+                                        {% if emergency.file_id %}
+                                        <div class="avatar">
+                                            <div class="w-16 h-16 rounded">
+                                                <img src="{{ emergency.file_id }}" alt="Emergency" class="object-cover">
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        <div class="flex-1">
+                                            <h4 class="font-bold {{ 'text-warning' if emergency.case_type.value == 'Typhoon' else 'text-error' if emergency.case_type.value == 'Fire' else 'text-info' if emergency.case_type.value in ['Crime', 'Flood'] else 'text-success' }}">
+                                                {{ emergency.case_type.value }}
+                                            </h4>
+                                            <p class="text-sm text-base-content/70">{{ emergency.message or 'No message' }}</p>
+                                            <p class="text-sm text-base-content/70">Reported by: {{ emergency.user.username }}</p>
+                                            <p class="text-sm text-base-content/70">Status: {{ emergency.status.value }}</p>
+                                        </div>
+                                        <i class="fas fa-map-marker-alt {{ 'text-warning' if emergency.case_type.value == 'Typhoon' else 'text-error' if emergency.case_type.value == 'Fire' else 'text-info' if emergency.case_type.value in ['Crime', 'Flood'] else 'text-success' }}"></i>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% else %}
+                                <div class="card bg-base-200 p-4">
+                                    <p class="text-sm text-base-content/70">No active emergencies found.</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Sidebar (modern) -->
+        <div class="drawer-side">
+            <label for="drawer-toggle" aria-label="close sidebar" class="drawer-overlay"></label>
+            <aside class="min-h-full w-64 sidebar-modern">
+                <div class="p-4">
+                    <div class="sidebar-profile">
+                        <div class="avatar">
+                            <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                        </div>
+                        <div class="meta">
+                            <div class="name">{{ current_user.fullName if current_user else 'Administrator' }}</div>
+                            <div class="sub">{{ current_user.email if current_user else 'admin@local' }}</div>
+                        </div>
+                    </div>
+                    <ul class="menu p-0 w-full">
+                        <li><a href="/" class="nav-link"><i class="fas fa-home nav-icon"></i><span>Home</span></a></li>
+                        <li><a href="/users" class="nav-link"><i class="fas fa-users nav-icon"></i><span>Users</span></a></li>
+                        <li><a href="/reports" class="nav-link"><i class="fas fa-chart-bar nav-icon"></i><span>Reports</span></a></li>
+                        <li><a href="/sirens" class="nav-link"><i class="fas fa-volume-up nav-icon"></i><span>IoT Siren</span></a></li>
+                        <li class="menu-title text-white">Emergency</li>
+                        <li><a href="/emergencies" class="nav-link"><i class="fas fa-exclamation-triangle nav-icon"></i><span>Emergencies</span></a></li>
+                        <li><a href="/alerts" class=" nav-link"><i class="fas fa-bullhorn nav-icon"></i><span>Emergency Alerts</span></a></li>
+                        <li><a href="/map" class="active nav-link"><i class="fas fa-map-marked-alt nav-icon"></i><span>Incident Map</span></a></li>
+                        <li><a href="/weather" class="nav-link"><i class="fas fa-cloud-sun nav-icon"></i><span>Weather Map</span></a></li>
+                        <li class="menu-title text-white">Settings</li>
+                        <li><a href="javascript:void(0)" onclick="showNotifications()" class="nav-link"><i class="fas fa-bell nav-icon"></i><span>Notifications</span></a></li>
+                        <li><a href="/configuration" class="nav-link"><i class="fas fa-cog nav-icon"></i><span>Configuration</span></a></li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+    
+    <!-- Emergency Details Modal -->
+    <dialog id="emergency_details_modal" class="modal">
+        <div class="modal-box w-11/12 max-w-3xl">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+            </form>
+            <h3 class="font-bold text-lg mb-4">Emergency Details</h3>
+            <div id="modal-content">
+                <!-- Content will be loaded dynamically -->
+                <div class="flex justify-center items-center py-8">
+                    <span class="loading loading-spinner loading-lg"></span>
+                </div>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+    
+    <script>
+        // Initialize Leaflet map centered on Rizal, Philippines
+        const map = L.map('map').setView([12.498104, 121.010275], 12);
+
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Store markers for reference
+        const markers = {};
+
+        // Add markers for active emergencies
+        const emergencies = [
+            {% for emergency in emergencies %}
+            {% if emergency.latitude and emergency.longitude %}
+            {
+                id: "{{ emergency.id }}",
+                latitude: {{ emergency.latitude }},
+                longitude: {{ emergency.longitude }},
+                case_type: "{{ emergency.case_type.value }}",
+                message: "{{ emergency.message or 'No message' }}",
+                username: "{{ emergency.user.username }}",
+                status: "{{ emergency.status.value }}",
+                file_id: "{{ emergency.file_id or '' }}"
+            }{% if not loop.last %},{% endif %}
+            {% endif %}
+            {% endfor %}
+        ];
+
+        // Create colored markers based on incident type
+        const typeColors = {
+            'Fire':    { stroke: '#ef4444', fill: '#dc2626' },
+            'Crime':   { stroke: '#06b6d4', fill: '#3b82f6' },
+            'Medical': { stroke: '#10b981', fill: '#059669' },
+            'Disaster':{ stroke: '#f59e0b', fill: '#b45309' },
+            'Default': { stroke: '#64748b', fill: '#94a3b8' }
+        };
+
+        // NEW: Build legend items from typeColors (exclude Default)
+        (function buildMapLegend(colors) {
+            try {
+                const legendContainer = document.getElementById('map-legend-items');
+                if (!legendContainer) return;
+                legendContainer.innerHTML = '';
+                Object.entries(colors).forEach(([key, val]) => {
+                    if (key === 'Default') return; // skip default
+                    const item = document.createElement('div');
+                    item.className = 'legend-item';
+                    const swatch = document.createElement('span');
+                    swatch.className = 'legend-swatch';
+                    swatch.style.background = val.fill || val.stroke || '#999';
+                    swatch.setAttribute('aria-hidden', 'true');
+                    const label = document.createElement('span');
+                    label.textContent = key;
+                    item.appendChild(swatch);
+                    item.appendChild(label);
+                    legendContainer.appendChild(item);
+                });
+
+                // Add a legend note for blinking unresolved incidents
+                const blinkNote = document.createElement('div');
+                blinkNote.className = 'legend-item';
+                const blinkSwatch = document.createElement('span');
+                blinkSwatch.className = 'legend-swatch';
+                blinkSwatch.style.background = '#ff3b30'; // red
+                blinkSwatch.setAttribute('aria-hidden', 'true');
+                const blinkLabel = document.createElement('span');
+                blinkLabel.textContent = 'Unresolved (blinking)';
+                blinkNote.appendChild(blinkSwatch);
+                blinkNote.appendChild(blinkLabel);
+                legendContainer.appendChild(blinkNote);
+
+            } catch (e) {
+                console.error('Failed to build map legend', e);
+            }
+        })(typeColors);
+        
+        emergencies.forEach(emergency => {
+            const colors = typeColors[emergency.case_type] || typeColors['Default'];
+
+            // Determine if the incident is unresolved (not exactly "Resolved")
+            const isUnresolved = emergency.status && emergency.status.trim().toLowerCase() !== 'resolved';
+
+            // For unresolved incidents, force a red color and add blinking class
+            const markerColor = isUnresolved ? '#ff3b30' : (colors.fill || '#94a3b8');
+            const blinkClass = isUnresolved ? ' blinking-marker' : '';
+
+            // Use a DivIcon with FontAwesome location icon colored per incident type;
+            // unresolved incidents get a red blinking marker.
+            const iconHtml = `<i class="fas fa-map-marker-alt${blinkClass}" style="
+                color: ${markerColor};
+                font-size: 28px;
+                line-height: 28px;
+                text-shadow: 0 2px 6px rgba(0,0,0,0.35);
+                " aria-hidden="true"></i>`;
+
+            const divIcon = L.divIcon({
+                html: iconHtml,
+                className: 'custom-div-icon', // keep class empty for minimal default styling
+                iconSize: [28, 28],
+                iconAnchor: [14, 28] // bottom-center anchor so the tip points to location
+            });
+
+            const marker = L.marker([emergency.latitude, emergency.longitude], { icon: divIcon }).addTo(map);
+
+            marker.bindPopup(`
+                <b>${emergency.case_type} Emergency</b><br>
+                Message: ${emergency.message}<br>
+                Reported by: ${emergency.username}<br>
+                Status: ${emergency.status}<br>
+                <a href="javascript:void(0)" onclick="showEmergencyDetails('${emergency.id}', ${emergency.latitude}, ${emergency.longitude})">View Details</a>
+            `);
+
+            markers[emergency.id] = marker;
+        });
+
+        // Show emergency details in modal
+        async function showEmergencyDetails(id, lat, lng) {
+            // First zoom to the location
+            const marker = markers[id];
+            if (marker) {
+                map.setView([lat, lng], 15);
+                marker.openPopup();
+            }
+            
+            // Open modal
+            const modal = document.getElementById('emergency_details_modal');
+            modal.showModal();
+            
+            // Fetch emergency details
+            try {
+                const response = await fetch(`/api/emergencies/${id}`);
+                const data = await response.json();
+                
+                // Build modal content
+                const modalContent = document.getElementById('modal-content');
+                modalContent.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="alert ${getCaseTypeClass(data.case_type)}">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span class="font-bold">${data.case_type} Emergency</span>
+                        </div>
+                        
+                        ${data.file_id ? `
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">Emergency Image</span>
+                            </label>
+                            <div class="rounded-lg overflow-hidden border-2 border-base-300">
+                                <img src="${data.file_id}" alt="Emergency Photo" class="w-full h-auto max-h-96 object-contain bg-base-200">
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-semibold">Case Type</span>
+                                </label>
+                                <div class="badge badge-lg ${getCaseTypeBadge(data.case_type)}">${data.case_type}</div>
+                            </div>
+                            
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-semibold">Status</span>
+                                </label>
+                                <div class="badge badge-lg ${getStatusBadge(data.status)}">${data.status}</div>
+                            </div>
+                            
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-semibold">Reported By</span>
+                                </label>
+                                <p class="text-base">${data.reported_by || 'Unknown'}</p>
+                            </div>
+                            
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-semibold">Created At</span>
+                                </label>
+                                <p class="text-base">${formatDate(data.created_at)}</p>
+                            </div>
+                            
+                            <div class="form-control md:col-span-2">
+                                <label class="label">
+                                    <span class="label-text font-semibold">Message</span>
+                                </label>
+                                <p class="text-base bg-base-200 p-3 rounded">${data.message || 'No message provided'}</p>
+                            </div>
+                            
+                            ${data.location_text ? `
+                            <div class="form-control md:col-span-2">
+                                <label class="label">
+                                    <span class="label-text font-semibold">Location</span>
+                                </label>
+                                <p class="text-base"><i class="fas fa-map-marker-alt mr-2"></i>${data.location_text}</p>
+                            </div>
+                            ` : ''}
+                            
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-semibold">Latitude</span>
+                                </label>
+                                <p class="text-base">${data.latitude}</p>
+                            </div>
+                            
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-semibold">Longitude</span>
+                                </label>
+                                <p class="text-base">${data.longitude}</p>
+                            </div>
+                            
+                            ${data.responders && data.responders.length > 0 ? `
+                            <div class="form-control md:col-span-2">
+                                <label class="label">
+                                    <span class="label-text font-semibold">Responders (${data.responders.length})</span>
+                                </label>
+                                <div class="space-y-2">
+                                    ${data.responders.map(r => `
+                                        <div class="flex items-center gap-2 bg-base-200 p-2 rounded">
+                                            <i class="fas fa-user-shield text-primary"></i>
+                                            <span>${r.fullName || r.username}</span>
+                                            <span class="badge badge-sm">${r.status || 'Assigned'}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="flex gap-2 justify-end mt-6">
+                            <a href="https://www.google.com/maps?q=${data.latitude},${data.longitude}" 
+                               target="_blank" 
+                               class="btn btn-outline btn-info">
+                                <i class="fas fa-external-link-alt mr-2"></i>Open in Google Maps
+                            </a>
+                            <form method="dialog">
+                                <button class="btn btn-primary">Close</button>
+                            </form>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error fetching emergency details:', error);
+                const modalContent = document.getElementById('modal-content');
+                modalContent.innerHTML = `
+                    <div class="alert alert-error">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span>Failed to load emergency details. Please try again.</span>
+                    </div>
+                `;
+            }
+        }
+        
+        // Helper functions
+        function getCaseTypeClass(caseType) {
+            const classes = {
+                'Fire': 'alert-error',
+                'Medical': 'alert-success',
+                'Crime': 'alert-info',
+                'Typhoon': 'alert-warning',
+                'Flood': 'alert-info',
+                'Disaster': 'alert-warning'
+            };
+            return classes[caseType] || 'alert-info';
+        }
+        
+        function getCaseTypeBadge(caseType) {
+            const badges = {
+                'Fire': 'badge-error',
+                'Medical': 'badge-success',
+                'Crime': 'badge-info',
+                'Typhoon': 'badge-warning',
+                'Flood': 'badge-info',
+                'Disaster': 'badge-warning'
+            };
+            return badges[caseType] || 'badge-info';
+        }
+        
+        function getStatusBadge(status) {
+            const badges = {
+                'Pending': 'badge-warning',
+                'In Progress': 'badge-info',
+                'Resolved': 'badge-success',
+                'Under Investigation': 'badge-secondary',
+                'Monitoring': 'badge-primary'
+            };
+            return badges[status] || 'badge-ghost';
+        }
+        
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        // Keep old function for backward compatibility
+        function zoomToEmergency(id, lat, lng) {
+            showEmergencyDetails(id, lat, lng);
+        }
+    </script>
+</body>
+
+    <script src="/static/js/notifications.js"></script>
+</html>

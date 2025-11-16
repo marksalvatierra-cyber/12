@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RizAlert - Configuration</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-base-200">
+    <div class="drawer lg:drawer-open">
+        <input id="drawer-toggle" type="checkbox" class="drawer-toggle" />
+        <!-- Main Content -->
+        <div class="drawer-content flex flex-col">
+            <!-- Navbar -->
+            <div class="navbar bg-red-900 shadow-lg">
+                <div class="flex-none lg:hidden">
+                    <label for="drawer-toggle" class="btn btn-square btn-ghost">
+                        <i class="fas fa-bars text-white text-xl"></i>
+                    </label>
+                </div>
+                <div class="flex-1">
+                    <h1 class="text-xl font-bold text-white">RizAlert Configuration</h1>
+                </div>
+                <div class="flex-none">
+                    <div class="dropdown dropdown-end">
+                        <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
+                            <div class="w-10 rounded-full">
+                                <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                            </div>
+                        </div>
+                        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+                            <li><a href="/admin/profile"><i class="fas fa-user mr-2"></i>Profile</a></li>
+                            <li><a href="/admin/logout"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <!-- Configuration Content -->
+            <div class="p-6">
+                {% if error %}
+                <div class="alert alert-error mb-6">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>{{ error }}</span>
+                </div>
+                {% endif %}
+
+                <!-- Emergency Settings Card -->
+                <div class="card bg-base-100 shadow-xl">
+                    <div class="card-body">
+                        <div class="card-title text-2xl mb-6">
+                            <i class="fas fa-phone-alt text-error mr-2"></i>
+                            Emergency Settings
+                        </div>
+                        
+                        <div class="divider"></div>
+
+                        <form id="configForm" class="space-y-6">
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text text-lg font-semibold">
+                                        <i class="fas fa-phone mr-2"></i>
+                                        Emergency Call Number
+                                    </span>
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="emergency_number" 
+                                    name="emergency_number" 
+                                    value="{{ config.emergency_number }}" 
+                                    placeholder="Enter emergency number (e.g., 911, +1-555-0123)" 
+                                    class="input input-bordered input-lg w-full max-w-md"
+                                    required
+                                />
+                                <label class="label">
+                                    <span class="label-text-alt">
+                                        <i class="fas fa-info-circle mr-1"></i>
+                                        This number will be used for emergency calls throughout the system
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div class="card-actions justify-end">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-save mr-2"></i>
+                                    Save Configuration
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Configuration Info -->
+                <div class="mt-6">
+                    <div class="alert alert-info">
+                        <i class="fas fa-lightbulb"></i>
+                        <div>
+                            <h3 class="font-bold">Configuration Guidelines</h3>
+                            <div class="text-sm mt-2">
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li>The emergency number can include digits, spaces, hyphens, and plus signs</li>
+                                    <li>Examples: 911, +1-555-0123, 999, +44 20 7946 0958</li>
+                                    <li>This number will be displayed in emergency alerts and used for automated calls</li>
+                                    <li>Changes take effect immediately across the entire system</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Sidebar -->
+        <div class="drawer-side">
+            <label for="drawer-toggle" aria-label="close sidebar" class="drawer-overlay"></label>
+            <aside class="min-h-full w-64 bg-red-900 text-white">
+                <div class="p-4">
+                    <div class="flex items-center gap-2 mb-8">
+                        <i class="fas fa-shield-alt text-2xl text-white"></i>
+                        <span class="text-xl font-bold text-white">RizAlert</span>
+                    </div>
+                    <ul class="menu p-0 w-full">
+                        <li><a href="/"><i class="fas fa-home"></i> Home</a></li>
+                        <li><a href="/users"><i class="fas fa-users"></i> Users</a></li>
+                        <li><a href="/reports"><i class="fas fa-chart-bar"></i> Reports</a></li>
+                        <li><a href="/sirens"><i class="fas fa-volume-up"></i> IoT Siren</a></li>
+                        <li class="menu-title text-white">Emergency</li>
+                        <li><a href="/emergencies" class="flex justify-between items-center"><span class="flex items-center gap-3"><i class="fas fa-exclamation-triangle"></i> Emergencies</span><span id="emergency-counter" class="badge badge-error badge-sm hidden">0</span></a></li>
+                        <li><a href="/alerts"><i class="fas fa-bullhorn"></i> Emergency Alerts</a></li>
+                        <li><a href="/map"><i class="fas fa-map-marked-alt"></i> Incident Map</a></li>
+                        <li><a href="/weather"><i class="fas fa-cloud-sun"></i> Weather Map</a></li>
+                        <li class="menu-title text-white">Settings</li>
+                        <li><a href="javascript:void(0)" onclick="showNotifications()" class="flex justify-between items-center"><span class="flex items-center gap-3"><i class="fas fa-bell"></i> Notifications</span><span id="notification-counter" class="badge badge-error badge-sm hidden">0</span></a></li>
+                        <li><a href="/configuration" class="active"><i class="fas fa-cog"></i> Configuration</a></li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div id="successToast" class="toast toast-top toast-end hidden">
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i>
+            <span id="successMessage">Configuration saved successfully!</span>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="errorToast" class="toast toast-top toast-end hidden">
+        <div class="alert alert-error">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="errorMessage">Failed to save configuration</span>
+        </div>
+    </div>
+
+    <!-- Notifications Modal -->
+    <dialog id="notificationsModal" class="modal">
+        <div class="modal-box w-11/12 max-w-4xl max-h-[80vh]">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+            </form>
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                <i class="fas fa-bell text-primary"></i>
+                Notifications
+            </h3>
+            <div id="notificationsContent" class="space-y-4 max-h-96 overflow-y-auto">
+                <!-- Notifications will be loaded here -->
+            </div>
+            <div class="modal-action">
+                <button onclick="markAllNotificationsRead()" class="btn btn-primary">
+                    <i class="fas fa-check-double mr-2"></i>
+                    Mark All as Read
+                </button>
+            </div>
+        </div>
+    </dialog>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Configuration form submission
+        const configForm = document.getElementById('configForm');
+        configForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(configForm);
+            const data = {
+                emergency_number: formData.get('emergency_number')
+            };
+            
+            try {
+                const response = await fetch('/configuration/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('successToast', result.message);
+                } else {
+                    showToast('errorToast', result.error || 'Failed to save configuration');
+                }
+            } catch (error) {
+                console.error('Configuration update error:', error);
+                showToast('errorToast', 'Network error occurred');
+            }
+        });
+        
+        // Toast display function
+        function showToast(toastId, message) {
+            const toast = document.getElementById(toastId);
+            const messageElement = toast.querySelector('span[id$="Message"]');
+            messageElement.textContent = message;
+            
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 5000);
+        }
+        
+        // Make showToast globally available
+        window.showToast = showToast;
+    });
+    </script>
+
+    <!-- Include notifications.js for counter updates -->
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RizAlert - Admin Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+</head>
+<body class="bg-gradient-to-br from-primary/10 to-secondary/10 min-h-screen flex items-center justify-center">
+    <div class="card w-full max-w-md bg-base-100 shadow-2xl">
+        <div class="card-body">
+            <!-- Logo -->
+            <div class="text-center mb-6">
+                <div class="flex justify-center items-center gap-2 mb-2">
+                    <i class="fas fa-shield-alt text-5xl text-red-900"></i>
+                </div>
+                <h1 class="text-3xl font-bold text-red-900">RizAlert</h1>
+                <p class="text-base-content/70">Emergency Management System</p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-control mb-4">
+                    <label class="label">
+                        <span class="label-text">Email or Username</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-envelope text-base-content/50"></i>
+                        </div>
+                        <input 
+                            type="text" 
+                            id="email" 
+                            placeholder="Enter email or username" 
+                            class="input input-bordered w-full pl-10" 
+                            required 
+                        />
+                    </div>
+                </div>
+
+                <div class="form-control mb-4">
+                    <label class="label">
+                        <span class="label-text">Password</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-lock text-base-content/50"></i>
+                        </div>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            placeholder="Enter password" 
+                            class="input input-bordered w-full pl-10 pr-12" 
+                            required 
+                        />
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                            <button 
+                                type="button" 
+                                onclick="togglePassword()" 
+                                class="text-base-content/50 hover:text-base-content transition-colors"
+                                tabindex="-1"
+                            >
+                                <i id="passwordToggleIcon" class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2FA Code (Hidden by default) -->
+                <div id="twoFactorSection" class="form-control mb-4 hidden">
+                    <label class="label">
+                        <span class="label-text">Two-Factor Authentication Code</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-mobile-alt text-base-content/50"></i>
+                        </div>
+                        <input 
+                            type="text" 
+                            id="twoFactorCode" 
+                            placeholder="000000" 
+                            maxlength="6" 
+                            class="input input-bordered w-full pl-10 tracking-widest text-center text-lg font-mono" 
+                        />
+                    </div>
+                    <label class="label">
+                        <span class="label-text-alt text-info">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Enter the 6-digit code from your authenticator app
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Error Message -->
+                <div id="errorMessage" class="alert alert-error mb-4 hidden">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span id="errorText"></span>
+                </div>
+
+                <!-- Remember Me -->
+                <div class="form-control mb-6">
+                    <label class="label cursor-pointer justify-start gap-2">
+                        <input type="checkbox" class="checkbox checkbox-primary" id="rememberMe" />
+                        <span class="label-text">Remember me</span>
+                    </label>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn bg-red-900 text-white w-full" id="loginBtn">
+                    <i class="fas fa-sign-in-alt mr-2"></i>
+                    Sign In
+                </button>
+            </form>
+
+            <!-- Additional Links -->
+            <div class="divider">OR</div>
+            <div class="text-center text-sm">
+                <a href="#" onclick="openForgotPasswordModal()" class="link link-primary">Forgot password?</a>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="card-footer bg-base-200 text-center py-4 rounded-b-xl">
+            <p class="text-sm text-base-content/70">
+                © 2025 RizAlert. All rights reserved.
+            </p>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <dialog id="forgotPasswordModal" class="modal">
+        <div class="modal-box">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+            </form>
+            <h3 class="font-bold text-lg mb-4">
+                <i class="fas fa-key text-warning mr-2"></i>
+                Reset Password
+            </h3>
+            
+            <form id="forgotPasswordForm" onsubmit="handleForgotPassword(event)">
+                <div class="form-control mb-4">
+                    <label class="label">
+                        <span class="label-text">Email Address</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-envelope text-base-content/50"></i>
+                        </div>
+                        <input 
+                            type="email" 
+                            id="resetEmail" 
+                            placeholder="Enter your email address" 
+                            class="input input-bordered w-full pl-10" 
+                            required 
+                        />
+                    </div>
+                    <label class="label">
+                        <span class="label-text-alt">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            We'll send a password reset link to this email
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Reset Error/Success Message -->
+                <div id="resetMessage" class="alert mb-4 hidden">
+                    <i id="resetIcon" class="fas"></i>
+                    <span id="resetText"></span>
+                </div>
+
+                <div class="modal-action">
+                    <button type="submit" class="btn btn-primary" id="resetBtn">
+                        <i class="fas fa-paper-plane mr-2"></i>
+                        Send Reset Link
+                    </button>
+                    <button type="button" class="btn" onclick="closeForgotPasswordModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <script>
+        // Initialize Firebase with configuration from backend
+        let auth;
+        
+        // Load Firebase configuration
+        async function initializeFirebase() {
+            try {
+                const response = await fetch('/api/firebase-config');
+                const firebaseConfig = await response.json();
+                
+                if (firebaseConfig.error) {
+                    console.warn('Firebase config not available:', firebaseConfig.error);
+                    return;
+                }
+                
+                // Initialize Firebase
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                auth = firebase.auth();
+                console.log('Firebase initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize Firebase:', error);
+            }
+        }
+        
+        // Initialize Firebase when page loads
+        document.addEventListener('DOMContentLoaded', initializeFirebase);
+
+        let requires2FA = false;
+
+        // Forgot Password Modal Functions
+        function openForgotPasswordModal() {
+            document.getElementById('forgotPasswordModal').showModal();
+            document.getElementById('resetEmail').focus();
+        }
+
+        function closeForgotPasswordModal() {
+            document.getElementById('forgotPasswordModal').close();
+            // Reset form
+            document.getElementById('forgotPasswordForm').reset();
+            document.getElementById('resetMessage').classList.add('hidden');
+            document.getElementById('resetBtn').disabled = false;
+            document.getElementById('resetBtn').innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send Reset Link';
+        }
+
+        // Handle Forgot Password
+        async function handleForgotPassword(event) {
+            event.preventDefault();
+            
+            // Check if Firebase is initialized
+            if (!auth) {
+                showResetMessage('error', 'fa-exclamation-circle', 'Firebase not initialized. Please refresh the page and try again.');
+                return;
+            }
+            
+            const email = document.getElementById('resetEmail').value.trim();
+            const resetBtn = document.getElementById('resetBtn');
+            const resetMessage = document.getElementById('resetMessage');
+            const resetIcon = document.getElementById('resetIcon');
+            const resetText = document.getElementById('resetText');
+
+            // Validate email
+            if (!email) {
+                showResetMessage('error', 'fa-exclamation-circle', 'Please enter your email address');
+                return;
+            }
+
+            // Disable button and show loading
+            resetBtn.disabled = true;
+            resetBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Sending...';
+            resetMessage.classList.add('hidden');
+
+            try {
+                // Send password reset email using Firebase
+                await auth.sendPasswordResetEmail(email);
+                
+                // Show success message
+                showResetMessage('success', 'fa-check-circle', 
+                    'Password reset link sent! Check your email and follow the instructions to reset your password.');
+                
+                // Update button
+                resetBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Sent!';
+                
+                // Auto close modal after 3 seconds
+                setTimeout(() => {
+                    closeForgotPasswordModal();
+                }, 3000);
+
+            } catch (error) {
+                console.error('Password reset error:', error);
+                
+                let errorMessage = 'Failed to send reset email. Please try again.';
+                
+                // Handle specific Firebase errors
+                switch (error.code) {
+                    case 'auth/user-not-found':
+                        errorMessage = 'No account found with this email address.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Please enter a valid email address.';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = 'Too many reset attempts. Please try again later.';
+                        break;
+                    case 'auth/network-request-failed':
+                        errorMessage = 'Network error. Please check your connection.';
+                        break;
+                }
+                
+                showResetMessage('error', 'fa-exclamation-circle', errorMessage);
+                
+                // Re-enable button
+                resetBtn.disabled = false;
+                resetBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send Reset Link';
+            }
+        }
+
+        function showResetMessage(type, icon, message) {
+            const resetMessage = document.getElementById('resetMessage');
+            const resetIcon = document.getElementById('resetIcon');
+            const resetText = document.getElementById('resetText');
+            
+            // Remove existing classes
+            resetMessage.classList.remove('alert-success', 'alert-error', 'alert-warning', 'alert-info');
+            resetIcon.classList.remove('fa-check-circle', 'fa-exclamation-circle', 'fa-info-circle');
+            
+            // Add new classes
+            resetMessage.classList.add(`alert-${type}`);
+            resetIcon.classList.add(icon);
+            resetText.textContent = message;
+            resetMessage.classList.remove('hidden');
+        }
+
+        // Toggle password visibility
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('passwordToggleIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const twoFactorCode = document.getElementById('twoFactorCode').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const errorMessage = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+
+            // Disable button and show loading
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="loading loading-spinner"></span> Signing in...';
+            errorMessage.classList.add('hidden');
+
+            try {
+                const payload = {
+                    email,
+                    password
+                };
+
+                // Add 2FA code if section is visible
+                if (!document.getElementById('twoFactorSection').classList.contains('hidden')) {
+                    if (!twoFactorCode || twoFactorCode.length !== 6) {
+                        throw new Error('Please enter a valid 6-digit 2FA code');
+                    }
+                    payload.two_factor_code = twoFactorCode;
+                }
+
+                const response = await fetch('/admin/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Success - redirect to dashboard or profile
+                    loginBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Success!';
+                    loginBtn.classList.remove('btn-primary');
+                    loginBtn.classList.add('btn-success');
+                    
+                    if (data.requires_2fa_setup) {
+                        // Show setup message
+                        errorMessage.classList.remove('alert-error');
+                        errorMessage.classList.add('alert-warning');
+                        errorMessage.classList.remove('hidden');
+                        errorText.textContent = data.message + ' Please enable 2FA in your profile.';
+                    }
+                    
+                    setTimeout(() => {
+                        window.location.href = data.redirect || '/';
+                    }, 1000);
+                } else if (data.requires_2fa_setup) {
+                    // Admin needs to set up 2FA first
+                    errorMessage.classList.remove('alert-info');
+                    errorMessage.classList.add('alert-warning');
+                    errorMessage.classList.remove('hidden');
+                    errorText.textContent = data.error;
+                    
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> Sign In';
+                } else if (data.requires_2fa) {
+                    // Show 2FA input field
+                    requires2FA = true;
+                    document.getElementById('twoFactorSection').classList.remove('hidden');
+                    document.getElementById('twoFactorCode').focus();
+                    
+                    // Update button text
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> Verify & Sign In';
+                    
+                    // Show info message
+                    errorMessage.classList.remove('alert-error');
+                    errorMessage.classList.add('alert-info');
+                    errorMessage.classList.remove('hidden');
+                    errorText.textContent = data.message;
+                } else {
+                    // Show error
+                    throw new Error(data.error || 'Login failed');
+                }
+            } catch (error) {
+                errorMessage.classList.remove('alert-info');
+                errorMessage.classList.add('alert-error');
+                errorMessage.classList.remove('hidden');
+                errorText.textContent = error.message;
+
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> Sign In';
+            }
+        }
+
+        // Auto-format 2FA code input
+        document.getElementById('twoFactorCode').addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+    </script>
+</body>
+</html>

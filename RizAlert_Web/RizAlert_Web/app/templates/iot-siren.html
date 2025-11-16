@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RizAlert - IoT Siren Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- include centralized sidebar CSS -->
+    <link rel="stylesheet" href="/static/css/sidebar.css">
+    <style>
+        :root {
+            --bg-1: #f4f6fb;
+            --glass: rgba(255,255,255,0.78);
+            --muted: #6b7280;
+            --accent-red: #f52727ff;
+            --accent-red-600: #b91c1c;
+            --accent-blue: #2563eb;
+            --card-radius: 14px;
+            --card-shadow: 0 12px 40px rgba(15,23,42,0.06);
+        }
+
+        html,body { height: 100%; }
+        body {
+            margin: 0;
+            font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            background: linear-gradient(180deg, var(--bg-1) 0%, #eef3f9 70%);
+            color: #0f172a;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Navbar */
+        
+        .navbar h1 { color: #fff; font-weight: 700; letter-spacing: -0.2px; margin: 0; }
+
+        /* Cards (glass look) */
+        .card, .card-body {
+            background: linear-gradient(180deg, var(--glass), rgba(255,255,255,0.9));
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(15,23,42,0.04);
+        }
+        .card-title { font-weight: 700; color: #0f172a; margin: 0; }
+
+        /* Buttons */
+        .btn { border-radius: 10px; padding: .6rem .9rem; transition: transform .12s ease, box-shadow .12s ease; }
+        .btn:active { transform: translateY(1px); }
+        .btn-primary {
+            background: linear-gradient(90deg, var(--accent-blue), #1e40af);
+            color: #fff;
+            border: none;
+            box-shadow: 0 8px 30px rgba(37,99,235,0.08);
+        }
+        .btn-error {
+            background: linear-gradient(90deg, var(--accent-red), var(--accent-red-600));
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            padding: .6rem 1rem;
+            box-shadow: 0 10px 34px rgba(185,28,28,0.12);
+        }
+        .btn-error:hover { transform: translateY(-3px); }
+
+        .btn-outline.btn-primary {
+            background: transparent;
+            color: var(--accent-red);
+            border: 1px solid rgba(15,23,42,0.06);
+            box-shadow: none;
+        }
+        .btn-outline.btn-primary:hover {
+            background: linear-gradient(90deg, var(--accent-red), var(--accent-red-600));
+            color: #fff;
+            border-color: transparent;
+        }
+
+        /* Stats */
+        .stat { border-radius: 12px; padding: 14px; background: linear-gradient(180deg,#fff,#fbfbfd); }
+        .stat-title { color: var(--muted); font-weight: 700; font-size: .95rem; }
+        .stat-value { font-weight: 800; font-size: 1.5rem; color: #0f172a; }
+        .stat-desc { color: rgba(15,23,42,0.55); }
+
+
+        /* Table */
+        .table-sm thead th { background: transparent; color: #374151; font-weight:700; position: sticky; top: 0; z-index: 2; }
+        .table-sm tbody tr:hover td { background: rgba(15,23,42,0.02); }
+
+        /* Siren card specifics */
+        .card.bg-error\/10 { background: linear-gradient(180deg, rgba(239,68,68,0.04), rgba(255,255,255,0.7)); }
+        .card.bg-info\/10 { background: linear-gradient(180deg, rgba(37,99,235,0.04), rgba(255,255,255,0.7)); }
+        .card.bg-warning\/10 { background: linear-gradient(180deg, rgba(245,158,11,0.04), rgba(255,255,255,0.7)); }
+
+        /* Siren network card */
+        .card.bg-success\/10 { background: linear-gradient(180deg, rgba(16,185,129,0.04), rgba(255,255,255,0.7)); }
+
+        /* Compact utilities */
+        .btn-sm { padding: .35rem .6rem; font-size: .9rem; border-radius: 8px; }
+        .badge-lg { padding: .45rem .8rem; font-weight: 800; border-radius: 999px; }
+
+        /* Card action sizing */
+        .card-actions .btn { min-width: 120px; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .grid-cols-1.md\:grid-cols-3 { grid-template-columns: repeat(1,1fr); }
+            .navbar { width: calc(100% - 24px); margin: 8px 12px; }
+        }
+    </style>
+</head>
+<body class="bg-base-200">
+    <div class="drawer lg:drawer-open">
+        <input id="drawer-toggle" type="checkbox" class="drawer-toggle" />
+        <!-- Main Content -->
+        <div class="drawer-content flex flex-col">
+            <!-- Navbar -->
+            <div class="navbar bg-red-900 shadow-lg">
+                <div class="flex-none lg:hidden">
+                    <label for="drawer-toggle" class="btn btn-square btn-ghost">
+                        <i class="fas fa-bars text-white text-xl"></i>
+                    </label>
+                </div>
+                <div class="flex-1">
+                    <h1 class="text-xl font-bold text-white">IoT Siren Management</h1>
+                </div>
+                <div class="flex-none gap-2">
+                    <!-- <button class="btn btn-error" onclick="activateAllSirens()">
+                        <i class="fas fa-volume-up mr-2"></i>Activate All
+                    </button> -->
+                    <button
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white shadow-md transition transform hover:-translate-y-0.5
+                 bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800">
+                <i class="fas fa-plus mr-2"></i>
+                     Add Siren
+                    </button>
+                    <div class="dropdown dropdown-end">
+                       <div tabindex="0" role="button" class="avatar">
+                            <div class="w-10 rounded-full">
+                                <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                            </div>
+                        </div>
+                        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+                            <li><a href="/admin/profile"><i class="fas fa-user mr-2"></i>Profile</a></li>
+                            <li><a href="/admin/logout"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <!-- IoT Siren Content -->
+            <div class="p-6">
+                <!-- Control Panel -->
+                <div class="card bg-base-100 shadow-xl mb-6">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4">
+                            <i class="fas fa-broadcast-tower mr-2"></i>
+                            Emergency Warning Control Panel
+                        </h2>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Typhoon Siren -->
+                            <div class="card bg-error/10 border-2 {% if typhoon_status %}border-error{% else %}border-error/20{% endif %}">
+                                <div class="card-body">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <h3 class="font-bold text-lg">
+                                            <i class="fas fa-wind mr-2"></i>Typhoon Warning
+                                        </h3>
+                                        <div class="badge {% if typhoon_status %}badge-error{% else %}badge-ghost{% endif %} badge-lg">
+                                            {% if typhoon_status %}ACTIVE{% else %}INACTIVE{% endif %}
+                                        </div>
+                                    </div>
+                                    <p class="text-sm text-base-content/70 mb-4">
+                                        Broadcast typhoon warnings and alerts to all connected sirens
+                                    </p>
+                                    <div class="card-actions">
+                                        <button 
+                                            id="typhoon-btn" 
+                                            class="btn btn-block {% if typhoon_status %}btn-error{% else %}btn-outline btn-primary{% endif %}"
+                                            onclick="toggleSiren('typhoon', {% if typhoon_status %}true{% else %}false{% endif %})"
+                                        >
+                                            <i class="fas {% if typhoon_status %}fa-stop{% else %}fa-volume-up{% endif %} mr-2"></i>
+                                            {% if typhoon_status %}Deactivate{% else %}Activate{% endif %}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Flood Siren -->
+                            <div class="card bg-info/10 border-2 {% if flood_status %}border-info{% else %}border-info/20{% endif %}">
+                                <div class="card-body">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <h3 class="font-bold text-lg">
+                                            <i class="fas fa-water mr-2"></i>Flood Warning
+                                        </h3>
+                                        <div class="badge {% if flood_status %}badge-info{% else %}badge-ghost{% endif %} badge-lg">
+                                            {% if flood_status %}ACTIVE{% else %}INACTIVE{% endif %}
+                                        </div>
+                                    </div>
+                                    <p class="text-sm text-base-content/70 mb-4">
+                                        Alert residents about flood warnings and water level increases
+                                    </p>
+                                    <div class="card-actions">
+                                        <button 
+                                            id="flood-btn" 
+                                            class="btn btn-block {% if flood_status %}btn-error{% else %}btn-outline btn-primary{% endif %}"
+                                            onclick="toggleSiren('flood', {% if flood_status %}true{% else %}false{% endif %})"
+                                        >
+                                            <i class="fas {% if flood_status %}fa-stop{% else %}fa-volume-up{% endif %} mr-2"></i>
+                                            {% if flood_status %}Deactivate{% else %}Activate{% endif %}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Earthquake Siren -->
+                            <div class="card bg-warning/10 border-2 {% if earthquake_status %}border-warning{% else %}border-warning/20{% endif %}">
+                                <div class="card-body">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <h3 class="font-bold text-lg">
+                                            <i class="fas fa-mountain mr-2"></i>Earthquake Warning
+                                        </h3>
+                                        <div class="badge {% if earthquake_status %}badge-warning{% else %}badge-ghost{% endif %} badge-lg">
+                                            {% if earthquake_status %}ACTIVE{% else %}INACTIVE{% endif %}
+                                        </div>
+                                    </div>
+                                    <p class="text-sm text-base-content/70 mb-4">
+                                        Broadcast earthquake alerts and safety instructions
+                                    </p>
+                                    <div class="card-actions">
+                                        <button 
+                                            id="earthquake-btn" 
+                                            class="btn btn-block {% if earthquake_status %}btn-error{% else %}btn-outline btn-primary{% endif %}"
+                                            onclick="toggleSiren('earthquake', {% if earthquake_status %}true{% else %}false{% endif %})"
+                                        >
+                                            <i class="fas {% if earthquake_status %}fa-stop{% else %}fa-volume-up{% endif %} mr-2"></i>
+                                            {% if earthquake_status %}Deactivate{% else %}Activate{% endif %}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="alert">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <div>
+                                <h3 class="font-bold">Warning</h3>
+                                <div class="text-xs">Activating sirens will broadcast emergency alerts to all connected IoT devices and notify all registered users.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Siren Status Overview -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                    <div class="stat bg-base-100 rounded-lg shadow">
+                        <div class="stat-figure text-success">
+                            <i class="fas fa-check-circle text-3xl"></i>
+                        </div>
+                        <div class="stat-title">Online Sirens</div>
+                        <div class="stat-value text-success">1</div>
+                    </div>
+                    <div class="stat bg-base-100 rounded-lg shadow">
+                        <div class="stat-figure text-error">
+                            <i class="fas fa-times-circle text-3xl"></i>
+                        </div>
+                        <div class="stat-title">Offline Sirens</div>
+                        <div class="stat-value text-error">1</div>
+                        <div class="stat-desc">Need attention</div>
+                    </div>
+                    <div class="stat bg-base-100 rounded-lg shadow">
+                        <div class="stat-figure text-warning">
+                            <i class="fas fa-volume-up text-3xl"></i>
+                        </div>
+                        <div class="stat-title">Active Alerts</div>
+                        <div class="stat-value text-warning">1</div>
+                        <div class="stat-desc">Currently broadcasting</div>
+                    </div>
+                    <div class="stat bg-base-100 rounded-lg shadow">
+                        <div class="stat-figure text-info">
+                            <i class="fas fa-battery-three-quarters text-3xl"></i>
+                        </div>
+                        <div class="stat-title">Avg Battery</div>
+                        <div class="stat-value text-info">Plugged</div>
+                        <div class="stat-desc">System health</div>
+                    </div>
+                </div>
+                
+                <!-- Siren Activity Logs -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Activation Logs -->
+                    <div class="card bg-base-100 shadow-xl">
+                        <div class="card-body">
+                            <h2 class="card-title mb-4">
+                                <i class="fas fa-bell text-success mr-2"></i>
+                                Activation Logs
+                            </h2>
+                            <div class="overflow-x-auto max-h-96 overflow-y-auto">
+                                <table class="table table-sm">
+                                    <thead class="sticky top-0 bg-base-200">
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>Siren Type</th>
+                                            <th>Triggered By</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if activation_logs %}
+                                            {% for log in activation_logs %}
+                                            <tr class="hover">
+                                                <td class="text-xs">{{ log.timestamp_str }}</td>
+                                                <td>
+                                                    <div class="badge {% if log.siren_type == 'TYPHOON' %}badge-error{% elif log.siren_type == 'FLOOD' %}badge-info{% elif log.siren_type == 'EARTHQUAKE' %}badge-warning{% else %}badge-ghost{% endif %} badge-sm">
+                                                        {% if log.siren_type == 'TYPHOON' %}🌪️{% elif log.siren_type == 'FLOOD' %}💧{% elif log.siren_type == 'EARTHQUAKE' %}🏚️{% endif %}
+                                                        {{ log.siren_type }}
+                                                    </div>
+                                                </td>
+                                                <td class="text-xs">{{ log.triggered_by or 'N/A' }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="3" class="text-center text-base-content/70">
+                                                    <div class="py-8">
+                                                        <i class="fas fa-inbox text-4xl mb-2"></i>
+                                                        <p>No activation logs yet</p>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Deactivation Logs -->
+                    <div class="card bg-base-100 shadow-xl">
+                        <div class="card-body">
+                            <h2 class="card-title mb-4">
+                                <i class="fas fa-bell-slash text-error mr-2"></i>
+                                Deactivation Logs
+                            </h2>
+                            <div class="overflow-x-auto max-h-96 overflow-y-auto">
+                                <table class="table table-sm">
+                                    <thead class="sticky top-0 bg-base-200">
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>Siren Type</th>
+                                            <th>Triggered By</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if deactivation_logs %}
+                                            {% for log in deactivation_logs %}
+                                            <tr class="hover">
+                                                <td class="text-xs">{{ log.timestamp_str }}</td>
+                                                <td>
+                                                    <div class="badge {% if log.siren_type == 'TYPHOON' %}badge-error{% elif log.siren_type == 'FLOOD' %}badge-info{% elif log.siren_type == 'EARTHQUAKE' %}badge-warning{% else %}badge-ghost{% endif %} badge-sm badge-outline">
+                                                        {% if log.siren_type == 'TYPHOON' %}🌪️{% elif log.siren_type == 'FLOOD' %}💧{% elif log.siren_type == 'EARTHQUAKE' %}🏚️{% endif %}
+                                                        {{ log.siren_type }}
+                                                    </div>
+                                                </td>
+                                                <td class="text-xs">{{ log.triggered_by or 'N/A' }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="3" class="text-center text-base-content/70">
+                                                    <div class="py-8">
+                                                        <i class="fas fa-inbox text-4xl mb-2"></i>
+                                                        <p>No deactivation logs yet</p>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Siren Grid -->
+                <div class="card bg-base-100 shadow-xl">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4">Siren Network Status</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Siren 1 -->
+                            <div class="card bg-success/10 border border-success/20">
+                                <div class="card-body p-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h3 class="font-bold">Main Office</h3>
+                                        <div class="badge badge-success">Online</div>
+                                    </div>
+                                    <p class="text-sm text-base-content/70 mb-2">Barangay Camachile General Trias</p>
+                                    <div class="flex items-center justify-between text-sm mb-3">
+                                        <span>Battery: Plugged</span>
+                                        <span>Signal: Strong</span>
+                                    </div>
+                                    <div class="card-actions justify-between">
+                                        <button class="btn btn-sm btn-primary" onclick="testSiren('SJ-001')">
+                                            <i class="fas fa-play mr-1"></i>Test
+                                        </button>
+                                        <button class="btn btn-sm btn-error" onclick="activateSiren('SJ-001')">
+                                            <i class="fas fa-volume-up mr-1"></i>Activate
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Sidebar (modern) -->
+        <div class="drawer-side">
+            <label for="drawer-toggle" aria-label="close sidebar" class="drawer-overlay"></label>
+            <aside class="min-h-full w-64 sidebar-modern">
+                <div class="p-4">
+                    <div class="sidebar-profile">
+                        <div class="avatar">
+                            <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                        </div>
+                        <div class="meta">
+                            <div class="name">{{ current_user.fullName if current_user else 'Administrator' }}</div>
+                            <div class="sub">{{ current_user.email if current_user else 'admin@local' }}</div>
+                        </div>
+                    </div>
+                    <ul class="menu p-0 w-full">
+                        <li><a href="/" class="nav-link"><i class="fas fa-home nav-icon"></i><span>Home</span></a></li>
+                        <li><a href="/users" class="nav-link"><i class="fas fa-users nav-icon"></i><span>Users</span></a></li>
+                        <li><a href="/reports" class="nav-link"><i class="fas fa-chart-bar nav-icon"></i><span>Reports</span></a></li>
+                        <li><a href="/sirens" class="active nav-link"><i class="fas fa-volume-up nav-icon"></i><span>IoT Siren</span></a></li>
+                        <li class="menu-title text-white">Emergency</li>
+                        <li><a href="/emergencies" class="nav-link"><i class="fas fa-exclamation-triangle nav-icon"></i><span>Emergencies</span></a></li>
+                        <li><a href="/alerts" class=" nav-link"><i class="fas fa-bullhorn nav-icon"></i><span>Emergency Alerts</span></a></li>
+                        <li><a href="/map" class="nav-link"><i class="fas fa-map-marked-alt nav-icon"></i><span>Incident Map</span></a></li>
+                        <li><a href="/weather" class="nav-link"><i class="fas fa-cloud-sun nav-icon"></i><span>Weather Map</span></a></li>
+                        <li class="menu-title text-white">Settings</li>
+                        <li><a href="javascript:void(0)" onclick="showNotifications()" class="nav-link"><i class="fas fa-bell nav-icon"></i><span>Notifications</span></a></li>
+                        <li><a href="/configuration" class="nav-link"><i class="fas fa-cog nav-icon"></i><span>Configuration</span></a></li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+    <script>
+        // Toggle siren (activate/deactivate)
+        async function toggleSiren(sirenType, currentStatus) {
+            const action = currentStatus ? 'deactivate' : 'activate';
+            const actionText = currentStatus ? 'Deactivating' : 'Activating';
+            const confirmMsg = currentStatus 
+                ? `Are you sure you want to deactivate the ${sirenType.toUpperCase()} siren?`
+                : `Are you sure you want to activate the ${sirenType.toUpperCase()} siren?\n\nThis will broadcast an emergency alert to all locations.`;
+            
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+
+            // Show loading state
+            const btn = document.getElementById(`${sirenType}-btn`);
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="loading loading-spinner loading-sm"></span> ${actionText}...`;
+
+            try {
+                const response = await fetch(`/api/sirens/${sirenType}/toggle`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`✅ ${sirenType.toUpperCase()} siren has been ${data.action}!`);
+                    // Reload page to update UI
+                    window.location.reload();
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        }
+
+        // Check siren status periodically (every 5 seconds)
+        setInterval(async () => {
+            try {
+                const response = await fetch('/api/sirens/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update badges without reloading
+                    updateSirenUI('typhoon', data.sirens.typhoon);
+                    updateSirenUI('flood', data.sirens.flood);
+                    updateSirenUI('earthquake', data.sirens.earthquake);
+                }
+            } catch (error) {
+                console.error('Error checking siren status:', error);
+            }
+        }, 5000);
+
+        function updateSirenUI(sirenType, isActive) {
+            const card = document.querySelector(`#${sirenType}-btn`).closest('.card');
+            const badge = card.querySelector('.badge');
+            const btn = document.getElementById(`${sirenType}-btn`);
+            
+            // Update badge
+            badge.textContent = isActive ? 'ACTIVE' : 'INACTIVE';
+            badge.className = `badge ${isActive ? `badge-${getBadgeColor(sirenType)}` : 'badge-ghost'} badge-lg`;
+            
+            // Update button
+            const icon = isActive ? 'fa-stop' : 'fa-volume-up';
+            const text = isActive ? 'Deactivate' : 'Activate';
+            // Active buttons should use the red gradient (btn-error) for visibility; inactive use outline primary
+            const btnClass = isActive ? 'btn-error' : 'btn-outline btn-primary';
+            
+            btn.className = `btn btn-block ${btnClass}`;
+            btn.innerHTML = `<i class="fas ${icon} mr-2"></i>${text}`;
+            btn.onclick = () => toggleSiren(sirenType, isActive);
+            
+            // Update card border
+            const colorClass = getBadgeColor(sirenType);
+            card.className = `card bg-${colorClass}/10 border-2 ${isActive ? `border-${colorClass}` : `border-${colorClass}/20`}`;
+        }
+
+        function getBadgeColor(sirenType) {
+            const colors = {
+                'typhoon': 'error',
+                'flood': 'info',
+                'earthquake': 'warning'
+            };
+            return colors[sirenType] || 'primary';
+        }
+
+        function activateAllSirens() {
+            // Show confirmation modal
+            if (confirm('Are you sure you want to activate all sirens? This will broadcast an emergency alert to all locations.')) {
+                // Simulate activation
+                alert('All sirens activated! Emergency broadcast initiated.');
+                // In real implementation, this would send API calls to activate sirens
+            }
+        }
+        
+        function testSiren(sirenId) {
+            alert(`Testing siren ${sirenId}... Test tone will play for 10 seconds.`);
+        }
+        
+        function activateSiren(sirenId) {
+            if (confirm(`Activate siren ${sirenId} for emergency broadcast?`)) {
+                alert(`Siren ${sirenId} activated successfully.`);
+            }
+        }
+        
+        function stopSiren(sirenId) {
+            if (confirm(`Stop siren ${sirenId}?`)) {
+                alert(`Siren ${sirenId} stopped.`);
+            }
+        }
+        
+        function repairSiren(sirenId) {
+            alert(`Repair request submitted for siren ${sirenId}. Maintenance team will be notified.`);
+        }
+        
+        function viewSiren(sirenId) {
+            alert(`Opening monitoring dashboard for siren ${sirenId}...`);
+        }
+    </script>
+    <script src="/static/js/notifications.js"></script>
+</body>
+</html>

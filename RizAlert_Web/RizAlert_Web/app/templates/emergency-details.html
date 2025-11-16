@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RizAlert - Emergency Details</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+     <link rel="stylesheet" href="/static/css/sidebar.css">
+</head>
+
+<style>
+     /* Badges */
+        .badge { border-radius: 999px; padding: .35rem .6rem; font-weight: 700; display:inline-flex; align-items:center; gap:8px; }
+        .badge-error { background: linear-gradient(90deg, rgba(255, 255, 255, 1), rgba(240, 240, 240, 1)); color: #000000ff; }
+        .badge-info { background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(37,99,235,0.06)); color: #1e40af; }
+        .badge-warning { background: linear-gradient(90deg, rgba(255, 255, 255, 1), rgba(240, 240, 240, 1)); color: #000000ff; }
+        .badge-success { background: linear-gradient(90deg, rgba(16,185,129,0.12), rgba(16,185,129,0.06)); color: #065f46; }
+        .badge-ghost { background: rgba(15,23,42,0.03); color: var(--muted); }
+
+</style>
+<body class="bg-base-200">
+    <div class="drawer lg:drawer-open">
+        <input id="drawer-toggle" type="checkbox" class="drawer-toggle" />
+        <!-- Main Content -->
+        <div class="drawer-content flex flex-col">
+            <!-- Navbar -->
+            <div class="navbar bg-red-900 shadow-lg">
+                <div class="flex-none lg:hidden">
+                    <label for="drawer-toggle" class="btn btn-square btn-ghost">
+                        <i class="fas fa-bars text-white text-xl"></i>
+                    </label>
+                </div>
+                <div class="flex-1">
+                    <h1 class="text-xl font-bold text-white">Emergency Details</h1>
+                </div>
+                <div class="flex-none">
+                   <a href="/emergencies" class="btn btn-ghost text-white hover:bg-red-600" style="color:white;">
+    <i class="fas fa-arrow-left mr-2"></i>Back to Emergencies
+</a>
+                    <a href="/emergencies/{{ emergency.id }}/edit" class="btn btn-primary">
+                        <i class="fas fa-edit mr-2"></i>Edit
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Emergency Details Content -->
+            <div class="p-6">
+                <!-- Emergency Header (modern gradient red) -->
+                <div class="rounded-2xl overflow-hidden shadow-lg mb-6" style="background: linear-gradient(135deg,#ef4444 0%, #b91c1c 70%);">
+                    <div class="flex flex-col lg:flex-row items-center gap-6 p-6">
+                        <!-- Emergency Image -->
+                        <div class="flex-shrink-0">
+                            {% if emergency.file_id %}
+                            <div class="rounded-lg overflow-hidden w-40 h-40 border-2 border-white shadow-inner">
+                                <img src="{{ emergency.file_id }}" alt="Emergency" class="object-cover w-full h-full">
+                            </div>
+                            {% else %}
+                            <div class="w-40 h-40 rounded-lg bg-white/10 flex items-center justify-center border-2 border-white/30">
+                                <i class="fas fa-image text-white text-4xl"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Emergency Info -->
+                        <div class="flex-1 text-white">
+                            <div class="flex items-start gap-4">
+                                <div class="rounded-full w-16 h-16 flex items-center justify-center bg-white/15">
+                                    <i class="fas fa-{{ 'wind' if emergency.case_type.value == 'Typhoon' else 'fire' if emergency.case_type.value == 'Fire' else 'shield-alt' if emergency.case_type.value == 'Crime' else 'water' if emergency.case_type.value == 'Flood' else 'heartbeat' }} text-white text-2xl"></i>
+                                </div>
+                                <div>
+                                    <h2 class="text-3xl font-extrabold tracking-tight">{{ emergency.case_type.value }} Emergency</h2>
+                                    <div class="flex gap-3 mt-3 items-center">
+                                        <span class="px-3 py-1 rounded-full text-sm font-semibold" style="background: rgba(255,255,255,0.12); backdrop-filter: blur(4px);">
+                                            {{ emergency.case_type.value }}
+                                        </span>
+                                        <span class="px-3 py-1 rounded-full text-sm font-semibold" style="background: rgba(255,255,255,0.12);">
+                                            {{ emergency.status.value }}
+                                        </span>
+                                        {% if emergency.isActive %}
+                                        <span class="px-3 py-1 rounded-full text-sm font-semibold" style="background: rgba(0, 179, 0, 1);">Active</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if emergency.message %}
+                            <div class="mt-4 bg-white/10 rounded-lg p-3" role="note">
+                                <div class="flex items-start gap-3">
+                                    <i class="fas fa-info-circle mt-1"></i>
+                                    <div>
+                                        <h4 class="font-semibold">Emergency Message</h4>
+                                        <p class="text-sm mt-1">{{ emergency.message }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Basic Info -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 text-sm text-white/90">
+                                <div>
+                                    <div class="text-xs uppercase opacity-70">Emergency ID</div>
+                                    <div class="font-mono">{{ emergency.id }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs uppercase opacity-70">Created</div>
+                                    <div>{{ emergency.created_at.strftime('%Y-%m-%d %H:%M:%S') if emergency.created_at else 'Unknown' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Details Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Reporter Information (glass card) -->
+                    <div class="rounded-xl bg-white/70 backdrop-blur-md p-4 shadow-sm">
+                        <h3 class="text-lg font-semibold mb-3"><i class="fas fa-user text-red-700 mr-2"></i>Reporter Information</h3>
+                        <div class="flex items-center gap-4 mb-3">
+                            <div class="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-700">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div>
+                                <div class="font-bold">{{ emergency.user.fullName }}</div>
+                                <div class="text-sm opacity-60">@{{ emergency.user.username }}</div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-2 text-sm">
+                            <div><span class="font-semibold">Email:</span> <span>{{ emergency.user.email or 'N/A' }}</span></div>
+                            <div><span class="font-semibold">Phone:</span> <span>{{ emergency.user.phone or 'N/A' }}</span></div>
+                            <div><span class="font-semibold">Role:</span> <span class="inline-block px-2 py-1 bg-red-50 text-red-700 rounded text-xs">{{ emergency.user.role }}</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Location Information (glass card) -->
+                    <div class="rounded-xl bg-white/70 backdrop-blur-md p-4 shadow-sm">
+                        <h3 class="text-lg font-semibold mb-3"><i class="fas fa-map-marker-alt text-white-700 mr-2"></i>Location Information</h3>
+                        {% if emergency.latitude and emergency.longitude %}
+                        <div class="space-y-3">
+                            {% if emergency.location_text %}
+                            <div class="rounded-md bg-white/10 p-3">
+                                <i class="fas fa-location-dot mr-2"></i>
+                                <span>{{ emergency.location_text }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="text-sm font-mono">{{ emergency.latitude }}, {{ emergency.longitude }}</div>
+                            <div class="flex gap-2">
+                                <button class="btn btn-sm btn-primary" 
+                                        data-lat="{{ emergency.latitude }}" 
+                                        data-lng="{{ emergency.longitude }}"
+                                        data-title="{{ emergency.case_type.value }} Emergency"
+                                        data-location="{{ emergency.location_text or '' }}"
+                                        onclick="viewOnMapFromData(this)">
+                                    <i class="fas fa-map mr-2"></i>View on Map
+                                </button>
+                                <a href="https://www.google.com/maps?q={{ emergency.latitude }},{{ emergency.longitude }}" target="_blank" class="btn btn-sm btn-outline">
+                                    <i class="fas fa-external-link-alt mr-2"></i>Google Maps
+                                </a>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="rounded-md bg-yellow-50 p-3 text-sm flex items-center gap-2">
+                            <i class="fas fa-exclamation-triangle text-yellow-700"></i>
+                            <span>No location information available</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Responders Section -->
+                <div class="rounded-xl bg-white/70 backdrop-blur-md p-4 mt-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold"><i class="fas fa-user-shield text-red-700 mr-2"></i>Emergency Responders ({{ emergency.responders|length }})</h3>
+                        <button class="btn btn-sm btn-primary" onclick="openAddResponderModal()">
+                            <i class="fas fa-plus mr-2"></i>Add Responder
+                        </button>
+                    </div>
+                    {% if emergency.responders %}
+                    <div class="overflow-x-auto">
+                        <table class="table table-zebra">
+                            <thead>
+                                <tr>
+                                    <th>Responder</th>
+                                    <th>Contact</th>
+                                    <th>Status</th>
+                                    <th>Response Time</th>
+                                    <th>Arrival</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for responder in emergency.responders %}
+                                <tr>
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-700">
+                                                <i class="fas fa-user-shield text-xs"></i>
+                                            </div>
+                                            <div>
+                                                <div class="font-bold">{{ responder.fullName }}</div>
+                                                <div class="text-sm opacity-50">@{{ responder.username }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="text-sm">
+                                            <div>{{ responder.email }}</div>
+                                            <div class="opacity-50">{{ responder.phone }}</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="px-2 py-1 rounded text-sm {{ 'bg-green-100 text-green-700' if responder.status == 'RESOLVED' else 'bg-yellow-100 text-yellow-700' if responder.status == 'IN_PROGRESS' else 'bg-blue-100 text-blue-700' }}">
+                                            {{ responder.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="text-sm">
+                                            {{ responder.response_datetime.strftime('%Y-%m-%d %H:%M') if responder.response_datetime else 'N/A' }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if responder.isArrived %}
+                                        <span class="px-2 py-1 rounded bg-green-100 text-green-700 text-sm">Arrived</span>
+                                        {% else %}
+                                        <span class="px-2 py-1 rounded bg-yellow-100 text-yellow-700 text-sm">En Route</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="flex gap-1">
+                                            <button class="btn btn-xs" 
+                                                    data-responder-id="{{ responder.responder_id }}"
+                                                    data-is-arrived="{{ responder.isArrived|lower }}"
+                                                    onclick="toggleResponderArrival(this)">
+                                                {% if responder.isArrived %}
+                                                <i class="fas fa-route"></i>
+                                                {% else %}
+                                                <i class="fas fa-check"></i>
+                                                {% endif %}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="rounded-md bg-yellow-50 p-3 text-sm flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle text-yellow-700"></i>
+                        <span>No responders assigned to this emergency yet.</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Actions Section -->
+                <div class="rounded-xl bg-white/70 backdrop-blur-md p-4 mt-6 shadow-sm">
+                    <h3 class="text-lg font-semibold mb-3"><i class="fas fa-cogs text-red-700 mr-2"></i>Emergency Actions</h3>
+                    <div class="flex flex-wrap gap-4">
+                        <a href="/emergencies/{{ emergency.id }}/edit" class="btn btn-primary">
+                            <i class="fas fa-edit mr-2"></i>Edit Emergency
+                        </a>
+                        {% if emergency.isActive %}
+                        <button class="btn btn-warning" onclick="deactivateEmergency('{{ emergency.id }}')">
+                            <i class="fas fa-ban mr-2"></i>Deactivate
+                        </button>
+                        {% else %}
+                        <button class="btn btn-success" onclick="activateEmergency('{{ emergency.id }}')">
+                            <i class="fas fa-play mr-2"></i>Activate
+                        </button>
+                        {% endif %}
+                        <button class="btn btn-error" style="background:red" onclick="deleteEmergency('{{ emergency.id }}')">
+                            <i class="fas fa-trash mr-2"></i>Delete Emergency
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar (modern) -->
+        <div class="drawer-side">
+            <label for="drawer-toggle" aria-label="close sidebar" class="drawer-overlay"></label>
+            <aside class="min-h-full w-64 sidebar-modern">
+                <div class="p-4">
+                    <div class="sidebar-profile">
+                        <div class="avatar">
+                            <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                        </div>
+                        <div class="meta">
+                            <div class="name">{{ current_user.fullName if current_user else 'Administrator' }}</div>
+                            <div class="sub">{{ current_user.email if current_user else 'admin@local' }}</div>
+                        </div>
+                    </div>
+                    <ul class="menu p-0 w-full">
+                        <li><a href="/" class="nav-link"><i class="fas fa-home nav-icon"></i><span>Home</span></a></li>
+                        <li><a href="/users" class=" nav-link"><i class="fas fa-users nav-icon"></i><span>Users</span></a></li>
+                        <li><a href="/reports" class="nav-link"><i class="fas fa-chart-bar nav-icon"></i><span>Reports</span></a></li>
+                        <li><a href="/sirens" class="nav-link"><i class="fas fa-volume-up nav-icon"></i><span>IoT Siren</span></a></li>
+                        <li class="menu-title text-white">Emergency</li>
+                        <li><a href="/emergencies" class="active nav-link"><i class="fas fa-exclamation-triangle nav-icon"></i><span>Emergencies</span></a></li>
+                        <li><a href="/alerts" class=" nav-link"><i class="fas fa-bullhorn nav-icon"></i><span>Emergency Alerts</span></a></li>
+                        <li><a href="/map" class=" nav-link"><i class="fas fa-map-marked-alt nav-icon"></i><span>Incident Map</span></a></li>
+                        <li><a href="/weather" class=" nav-link"><i class="fas fa-cloud-sun nav-icon"></i><span>Weather Map</span></a></li>
+                        <li class="menu-title text-white">Settings</li>
+                        <li><a href="javascript:void(0)" onclick="showNotifications()" class="nav-link"><i class="fas fa-bell nav-icon"></i><span>Notifications</span></a></li>
+                        <li><a href="/configuration" class="nav-link"><i class="fas fa-cog nav-icon"></i><span>Configuration</span></a></li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+    
+    <!-- Add Responder Modal -->
+    <dialog id="addResponderModal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg mb-4">
+                <i class="fas fa-user-plus text-primary"></i>
+                Add Emergency Responder
+            </h3>
+            <form id="addResponderForm" onsubmit="submitAddResponder(event)">
+                <div class="form-control mb-4">
+                    <label class="label">
+                        <span class="label-text">Select Responder *</span>
+                    </label>
+                    <select name="responder_id" class="select select-bordered" required>
+                        <option value="">Choose a responder</option>
+                        {% for user in users %}
+                        {% if user.role == 'responder' %}
+                        <option value="{{ user.id }}">{{ user.fullName }} (@{{ user.username }})</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-control mb-4">
+                    <label class="label">
+                        <span class="label-text">Initial Status</span>
+                    </label>
+                    <select name="status" class="select select-bordered">
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="RESOLVED">Resolved</option>
+                    </select>
+                </div>
+                <div class="form-control mb-4">
+                    <label class="label">
+                        <span class="label-text">Arrival Status</span>
+                    </label>
+                    <select name="isArrived" class="select select-bordered">
+                        <option value="false">En Route</option>
+                        <option value="true">Arrived</option>
+                    </select>
+                </div>
+                <div class="modal-action">
+                    <button type="button" class="btn" onclick="closeAddResponderModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus mr-2"></i>Add Responder
+                    </button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script>
+        function openAddResponderModal() {
+            document.getElementById('addResponderModal').showModal();
+        }
+
+        function closeAddResponderModal() {
+            document.getElementById('addResponderModal').close();
+            document.getElementById('addResponderForm').reset();
+        }
+
+        function submitAddResponder(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = {
+                responder_id: formData.get('responder_id'),
+                status: formData.get('status'),
+                isArrived: formData.get('isArrived') === 'true'
+            };
+
+            fetch(`/api/emergencies/{{ emergency.id }}/add-responder`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                alert('Responder added successfully!');
+                closeAddResponderModal();
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to add responder');
+            });
+        }
+
+        function toggleResponderArrival(button) {
+            const responderId = button.getAttribute('data-responder-id');
+            const currentArrived = button.getAttribute('data-is-arrived') === 'true';
+            const newArrived = !currentArrived;
+            
+            fetch(`/api/emergencies/{{ emergency.id }}/update-responder`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    responder_id: responderId,
+                    isArrived: newArrived
+                })
+            })
+            .then(response => response.json())
+            .then(result => {
+                alert('Responder status updated successfully!');
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update responder status');
+            });
+        }
+
+        function viewOnMapFromData(button) {
+            const lat = parseFloat(button.getAttribute('data-lat'));
+            const lng = parseFloat(button.getAttribute('data-lng'));
+            const title = button.getAttribute('data-title');
+            const locationText = button.getAttribute('data-location');
+            viewOnMap(lat, lng, title, locationText);
+        }
+
+        function deactivateEmergency(id) {
+            if (confirm('Are you sure you want to deactivate this emergency?')) {
+                fetch(`/api/emergencies/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ isActive: false })
+                })
+                .then(response => response.json())
+                .then(result => {
+                    alert('Emergency deactivated successfully!');
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to deactivate emergency');
+                });
+            }
+        }
+
+        function activateEmergency(id) {
+            if (confirm('Are you sure you want to activate this emergency?')) {
+                fetch(`/api/emergencies/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ isActive: true })
+                })
+                .then(response => response.json())
+                .then(result => {
+                    alert('Emergency activated successfully!');
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to activate emergency');
+                });
+            }
+        }
+
+        function deleteEmergency(id) {
+            if (confirm('Are you sure you want to delete this emergency? This action cannot be undone.')) {
+                fetch(`/api/emergencies/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(result => {
+                    alert('Emergency deleted successfully!');
+                    window.location.href = '/emergencies';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to delete emergency');
+                });
+            }
+        }
+
+        function viewOnMap(lat, lng, title, locationText) {
+            // Create modal for map
+            const modal = document.createElement('dialog');
+            modal.className = 'modal';
+            modal.id = 'mapModal';
+            modal.innerHTML = `
+                <div class="modal-box w-11/12 max-w-5xl">
+                    <h3 class="font-bold text-lg mb-4">
+                        <i class="fas fa-map-marked-alt text-primary mr-2"></i>
+                        ${title}
+                    </h3>
+                    ${locationText ? `<div class="alert alert-info mb-4">
+                        <i class="fas fa-location-dot"></i>
+                        <span>${locationText}</span>
+                    </div>` : ''}
+                    <div class="mb-4">
+                        <div class="badge badge-outline">
+                            <i class="fas fa-map-pin mr-1"></i>
+                            Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}
+                        </div>
+                    </div>
+                    <div id="mapContainer" style="height: 400px; width: 100%; border-radius: 8px;"></div>
+                    <div class="modal-action">
+                        <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt mr-2"></i>Open in Google Maps
+                        </a>
+                        <button class="btn" onclick="closeMapModal()">Close</button>
+                    </div>
+                </div>
+                <form method="dialog" class="modal-backdrop">
+                    <button onclick="closeMapModal()">close</button>
+                </form>
+            `;
+            
+            document.body.appendChild(modal);
+            modal.showModal();
+            
+            // Initialize map after modal is shown
+            setTimeout(() => {
+                const map = L.map('mapContainer').setView([lat, lng], 15);
+                
+                // Add OpenStreetMap tiles
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19
+                }).addTo(map);
+                
+                // Add marker
+                const marker = L.marker([lat, lng]).addTo(map);
+                marker.bindPopup(`<b>${title}</b><br>${locationText || 'Emergency Location'}`).openPopup();
+                
+                // Store map instance for cleanup
+                modal.mapInstance = map;
+            }, 100);
+        }
+
+        function closeMapModal() {
+            const modal = document.getElementById('mapModal');
+            if (modal) {
+                // Clean up map instance
+                if (modal.mapInstance) {
+                    modal.mapInstance.remove();
+                }
+                modal.close();
+                modal.remove();
+            }
+        }
+    </script>
+    <script src="/static/js/notifications.js"></script>
+</body>
+</html>

@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RizAlert - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/sidebar.css">
+    <style>
+        :root{
+            --bg-1: #0f172a;         /* deep background for contrast accents */
+            --bg-2: #f8fafc;         /* card background */
+            --muted: rgba(15,23,42,0.6);
+            --card-shadow: 0 8px 30px rgba(2,6,23,0.12);
+            --card-glass: rgba(255,255,255,0.6);
+            --accent: #b91c1c;      /* primary accent (kept existing red) */
+            --accent-600: #991b1b;
+            --success: #16a34a;
+            --info: #1e40af;
+            --warning: #b45309;
+            --danger: #ef4444;
+            --radius-lg: 12px;
+        }
+
+        /* Badges */
+        .badge { border-radius: 999px; padding: .35rem .6rem; font-weight: 700; display:inline-flex; align-items:center; gap:8px; }
+        .badge-error { background: linear-gradient(90deg, rgba(255, 255, 255, 1), rgba(240, 240, 240, 1)); color: #000000ff; }
+        .badge-info { background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(37,99,235,0.06)); color: #1e40af; }
+        .badge-warning { background: linear-gradient(90deg, rgba(255, 255, 255, 1), rgba(240, 240, 240, 1)); color: #000000ff; }
+        .badge-success { background: linear-gradient(90deg, rgba(16,185,129,0.12), rgba(16,185,129,0.06)); color: #065f46; }
+        .badge-ghost { background: rgba(15,23,42,0.03); color: var(--muted); }
+
+
+        /* Global */
+        html,body { height:100%; }
+        body{
+            font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            background: linear-gradient(180deg, #fbfbfc 0%, #f3f4f6 60%);
+            color: #0f172a;
+            -webkit-font-smoothing:antialiased;
+            -moz-osx-font-smoothing:grayscale;
+            line-height:1.45;
+        }
+
+        /* Navbar - translucent modern bar with subtle blur */
+        .navbar {
+            box-sizing: border-box;
+            /* fluid width but constrained to a comfortable max */
+            width: min(1200px, calc(100% - 24px));
+            margin: 8px auto;
+            /* padding scales between mobile and desktop */
+            padding: clamp(.5rem, 2.2vw, 1rem);
+            border-radius: 12px;
+            background: linear-gradient(90deg, rgba(185,28,28,0.95), rgba(148,17,17,0.95));
+            box-shadow: 0 6px 20px rgba(15,23,42,0.18);
+            align-items: center;
+        }
+        .navbar .btn-ghost { color: rgba(255,255,255,0.95); }
+        .navbar h1 { letter-spacing: -.2px; }
+
+        /* Sidebar */
+        .drawer-side aside {
+            background: linear-gradient(180deg,#7f1d1d,#4c0519);
+            border-right: 1px solid rgba(255,255,255,0.04);
+            padding-top: 20px;
+        }
+        .drawer-side .menu a { color: rgba(255,255,255,0.95); }
+        .drawer-side .menu a.active, .drawer-side .menu a:hover {
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+        }
+
+        /* Card & stat */
+        .card, .card-body {
+            border-radius: var(--radius-lg);
+            background: linear-gradient(180deg,var(--card-glass), rgba(255,255,255,0.9));
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(15,23,42,0.04);
+        }
+        .card-title { font-weight:700; color:#0f172a; }
+
+        .stat { border-radius:10px; padding:14px; background: #fff; }
+        .stat-figure i { font-size:22px; }
+        .stat-title { color:var(--muted); font-size:0.9rem; }
+        .stat-value { font-weight:700; font-size:1.25rem; }
+
+        /* Alerts */
+        .alert {
+            border-radius:10px;
+            padding:14px;
+            display:flex;
+            gap:12px;
+            align-items:center;
+            box-shadow:0 8px 28px rgba(15,23,42,0.03);
+            border: 1px solid rgba(15,23,42,0.04);
+            background: linear-gradient(180deg,#fff,#fbfbfd);
+        }
+        .alert i { font-size:20px; width:34px; text-align:center; }
+
+        /* map alert types to refined colors without changing template logic */
+        .alert-error { background: linear-gradient(180deg,#fff7f7,#fff3f3); border-left:4px solid var(--danger); }
+        .alert-warning { background: linear-gradient(180deg,#fffbeb,#fffae6); border-left:4px solid var(--warning); }
+        .alert-info    { background: linear-gradient(180deg,#f0f9ff,#f8fdff); border-left:4px solid var(--info); }
+        .alert-success { background: linear-gradient(180deg,#f0fdf4,#f8fff9); border-left:4px solid var(--success); }
+
+        /* Recent Cases - modern compact card with left accent */
+        .card.recent-modern {
+            border-radius: 12px;
+            transition: transform .12s, box-shadow .12s;
+            border: 1px solid rgba(15,23,42,0.04);
+            background: linear-gradient(180deg,#ffffff,#fbfbfc);
+        }
+        .card.recent-modern:hover { transform: translateY(-6px); box-shadow: 0 18px 50px rgba(2,6,23,0.08); }
+        .card.recent-modern .card-body { padding:1rem; }
+        .card.recent-modern .accent {
+            height:100%;
+            width:6px;
+            border-radius:8px;
+            margin-right:12px;
+            flex-shrink:0;
+        }
+        .card.recent-modern .accent.fire { background: linear-gradient(180deg,#ef4444,#b91c1c); }
+        .card.recent-modern .accent.medical { background: linear-gradient(180deg,#10b981,#059669); }
+        .card.recent-modern .accent.crime { background: linear-gradient(180deg,#2563eb,#1e40af); }
+        .card.recent-modern .accent.disaster { background: linear-gradient(180deg,#f59e0b,#b45309); }
+
+        /* Recent card inner layout */
+        .recent-row { display:flex; gap:12px; align-items:flex-start; height:100%; }
+
+        /* Status badges */
+        .status-badge {
+            padding: .25rem .5rem;
+            border-radius: 999px;
+            font-weight:700;
+            font-size: .78rem;
+            letter-spacing:.2px;
+        }
+        .status-resolved { background:#ecfdf5; color:#065f46; }
+        .status-pending { background:#fffbeb; color:#92400e; }
+        .status-progress { background:#eff6ff; color:#1e3a8a; }
+        .status-other { background:#fff1f2; color:#7f1d1d; }
+
+        /* Modal refinements (uses modal-box from daisyui, just fine-tuned) */
+        dialog::backdrop { background: rgba(2,6,23,0.45); }
+        .modal-box { border-radius:12px; padding:1.25rem; }
+
+        /* Modern stat cards (red gradient, icon, responsive) */
+        .stats-grid { display: grid; grid-template-columns: repeat(1,1fr); gap: 1rem; }
+        @media(min-width:768px){ .stats-grid { grid-template-columns: repeat(2,1fr); } }
+        @media(min-width:1024px){ .stats-grid { grid-template-columns: repeat(4,1fr); } }
+
+        .stat-card {
+            display:flex;
+            gap:12px;
+            align-items:center;
+            padding:12px;
+            border-radius:12px;
+            background: linear-gradient(180deg,#fff,#fbfbfd);
+            box-shadow: 0 10px 30px rgba(15,23,42,0.06);
+            border: 1px solid rgba(15,23,42,0.04);
+        }
+        .stat-card .icon {
+            flex:0 0 56px;
+            height:56px;
+            border-radius:12px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            color:#fff;
+            font-size:20px;
+            box-shadow: 0 6px 18px rgba(185,28,28,0.12);
+        }
+        .stat-card .content { display:flex; flex-direction:column; gap:4px; }
+        .stat-card .title { font-weight:700; color:rgba(15,23,42,0.85); font-size:0.95rem; }
+        .stat-card .value { font-weight:800; font-size:1.35rem; color: #b91c1c; }
+        .stat-card .desc { color: rgba(15,23,42,0.55); font-size:0.85rem; }
+
+        /* small screens: compress spacing */
+        @media(max-width:420px){
+            .stat-card { gap:10px; padding:10px; }
+            .stat-card .icon { width:48px; height:48px; font-size:18px; }
+            .stat-card .value { font-size:1.1rem; }
+        }
+
+        /* Responsive tweaks */
+        @media (max-width: 768px) {
+            .drawer-side { width: 220px; }
+            .navbar { margin: 6px 8px; }
+        }
+    </style>
+</head>
+<body class="bg-base-200">
+    <div class="drawer lg:drawer-open">
+        <input id="drawer-toggle" type="checkbox" class="drawer-toggle" />
+        <!-- Main Content -->
+        <div class="drawer-content flex flex-col">
+            <!-- Navbar -->
+            <div class="navbar">
+				<div class="flex-none lg:hidden">
+					<label for="drawer-toggle" class="btn btn-square btn-ghost">
+						<i class="fas fa-bars text-white text-xl"></i>
+					</label>
+				</div>
+				<div class="flex-1">
+					<h1 class="text-xl font-bold text-white">RizAlert Dashboard</h1>
+				</div>
+				<!-- Changed: add emergency icon before admin avatar -->
+                <div class="flex-none flex items-center gap-2 relative">
+                    <!-- emergency button -->
+                    <button id="alertsButton" class="btn btn-ghost btn-circle tooltip"  aria-label="Emergency Alerts" type="button">
+                        <i class="fas fa-exclamation-triangle text-white text-3xl"></i>
+                        <!-- badge -->
+                        <span id="alertsCount" class="badge badge-sm hidden"
+                              style="position:absolute; top:1px; right:1px;
+                                     border-radius:999px; min-width:20px; height:20px;
+                                     display:inline-flex; align-items:center; justify-content:center;
+                                     font-size:1.05rem; color:white;
+                                     background: #fe0000ff; padding:0 6px;
+                                     border: 1px solid rgba(0,0,0,0.08);
+                                     box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+                                     font-weight:700;">
+                            0
+                        </span>
+                    </button>
+ 
+                    <!-- existing dropdown avatar code -->
+                    <div class="dropdown dropdown-end">
+                        <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
+                            <div class="w-10 rounded-full">
+                                <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                            </div>
+                        </div>
+                        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+                            <li><a href="/admin/profile"><i class="fas fa-user mr-2"></i>Profile</a></li>
+                            <li><a href="/admin/logout"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+			</div>
+            <!-- Dashboard Content -->
+            <div class="p-6">
+                <!-- Incident Report Chart -->
+                <div class="mb-6">
+                    <div class="card bg-base-100 shadow-xl">
+                        <div class="card-body">
+                            <h2 class="card-title mb-4">
+                                <i class="fas fa-chart-bar text-primary mr-2"></i>
+                                Incident Reports - {{ current_year }} (Yearly Rate)
+                            </h2>
+                            <div class="h-80">
+                                <canvas id="incidentChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Emergency Alerts -->
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold mb-4">Emergency Alerts</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {% for alert in alerts %}
+                        {% if alert.case %}
+                        <div class="alert {% if alert.case.case_type.value == 'Typhoon' %}alert-warning{% elif alert.case.case_type.value == 'Fire' %}alert-error{% elif alert.case.case_type.value == 'Crime' %}alert-info{% elif alert.case.case_type.value == 'Flood' %}alert-info{% else %}alert-success{% endif %}">
+                            <i class="fas {% if alert.case.case_type.value == 'Typhoon' %}fa-wind{% elif alert.case.case_type.value == 'Fire' %}fa-fire{% elif alert.case.case_type.value == 'Crime' %}fa-shield-alt{% elif alert.case.case_type.value == 'Flood' %}fa-water{% else %}fa-heartbeat{% endif %} text-2xl"></i>
+                            <div>
+                                <h3 class="font-bold">{{ alert.case.case_type.value }} Alert</h3>
+                                <div class="text-xs">{{ alert.case.description or 'No details available' }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle text-2xl"></i>
+                            <div>
+                                <h3 class="font-bold">No Active Alerts</h3>
+                                <div class="text-xs">No emergencies currently active</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <!-- Statistics Cards (modern, responsive, red gradient icons) -->
+                <div class="stats-grid mb-6">
+                    <div class="stat-card">
+                        <div class="icon" style="background: linear-gradient(90deg,#ef4444,#b91c1c);">
+                            <i class="fas fa-heartbeat"></i>
+                        </div>
+                        <div class="content">
+                            <div class="title">Medical Cases</div>
+                            <div class="value">{{ medical_resolved_rate }}%</div>
+                            <div class="desc">Resolved Rate</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="icon" style="background: linear-gradient(90deg,#ef4444,#b91c1c);">
+                            <i class="fas fa-fire"></i>
+                        </div>
+                        <div class="content">
+                            <div class="title">Fire Cases</div>
+                            <div class="value">{{ fire_resolved_rate }}%</div>
+                            <div class="desc">Resolved Rate</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="icon" style="background: linear-gradient(90deg,#ef4444,#b91c1c);">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="content">
+                            <div class="title">Disaster Cases</div>
+                            <div class="value">{{ disaster_resolved_rate }}%</div>
+                            <div class="desc">Resolved Rate</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="icon" style="background: linear-gradient(90deg,#ef4444,#b91c1c);">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="content">
+                            <div class="title">Crime Cases</div>
+                            <div class="value">{{ crime_resolved_rate }}%</div>
+                            <div class="desc">Resolved Rate</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Recent Cases -->
+                <div class="card bg-base-100 shadow-xl">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4">Recent Cases</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for item in recent_cases %}
+    {% if item.emergency and item.emergency.user %}
+    <div class="card recent-modern bg-white hover:shadow-lg transition-all duration-200 cursor-pointer"
+         onclick="openEmergencyModal('{{ item.emergency.id }}')">
+         <div class="card-body p-4">
+            <div class="recent-row">
+                {# left accent color based on case type (visual only) #}
+                <div class="accent {% if item.emergency.case_type.value == 'Fire' %}fire{% elif item.emergency.case_type.value == 'Medical' %}medical{% elif item.emergency.case_type.value == 'Crime' %}crime{% else %}disaster{% endif %}"></div>
+                <div style="flex:1">
+                    <!-- Header with case type and time -->
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="px-3 py-1 rounded-full text-sm font-medium bg-red-900 text-white">
+                            {{ item.emergency.case_type.value }}
+                        </span>
+                        <span class="text-sm text-gray-600">
+                            {{ item.time_diff | time_ago }}
+                        </span>
+                    </div>
+                    
+                    <!-- Case details -->
+                    <h3 class="font-bold text-red-900 mb-2">
+                        {{ item.emergency.case_type.value }} Incident
+                    </h3>
+                    <p class="text-sm text-gray-600 mb-2">
+                        {{ item.emergency.message or 'No message provided' }}
+                    </p>
+                    
+                    <!-- Footer with reporter and status -->
+                    <div class="flex items-center justify-between mt-auto">
+                        <span class="text-sm text-gray-600">
+                            <i class="fas fa-user text-red-900/70 mr-1"></i>
+                            {{ item.emergency.user.username }}
+                        </span>
+                        <span class="status-badge
+                            {% if item.emergency.status.value == 'Resolved' %}
+                                status-resolved
+                            {% elif item.emergency.status.value == 'Pending' %}
+                                status-pending
+                            {% elif item.emergency.status.value == 'In Progress' %}
+                                status-progress
+                            {% else %}
+                                status-other
+                            {% endif %}">
+                            {{ item.emergency.status.value }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+         </div>
+     </div>
+    {% endif %}
+    {% else %}
+    <div class="card bg-white border border-red-900/20">
+        <div class="card-body p-4">
+            <div class="text-center text-gray-600">
+                <i class="fas fa-inbox text-red-900/50 text-3xl mb-2"></i>
+                <p class="font-medium">No Recent Cases</p>
+                <p class="text-sm">No emergencies reported yet.</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+ </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+       <!-- Sidebar (modern) -->
+        <div class="drawer-side">
+            <label for="drawer-toggle" aria-label="close sidebar" class="drawer-overlay"></label>
+            <aside class="min-h-full w-64 sidebar-modern">
+                <div class="p-4">
+                    <div class="sidebar-profile">
+                        <div class="avatar">
+                            <img alt="{{ current_user.fullName if current_user else 'Admin' }}" src="{{ current_user.profile_picture if current_user else 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin' }}" />
+                        </div>
+                        <div class="meta">
+                            <div class="name">{{ current_user.fullName if current_user else 'Administrator' }}</div>
+                            <div class="sub">{{ current_user.email if current_user else 'admin@local' }}</div>
+                        </div>
+                    </div>
+                    <ul class="menu p-0 w-full">
+                        <li><a href="/ " class="active nav-link"><i class="fas fa-home nav-icon"></i><span>Home</span></a></li>
+                        <li><a href="/users" class="nav-link"><i class="fas fa-users nav-icon"></i><span>Users</span></a></li>
+                        <li><a href="/reports" class="nav-link"><i class="fas fa-chart-bar nav-icon"></i><span>Reports</span></a></li>
+                        <li><a href="/sirens" class="nav-link"><i class="fas fa-volume-up nav-icon"></i><span>IoT Siren</span></a></li>
+                        <li class="menu-title text-white">Emergency</li>
+                        <li><a href="/emergencies" class="nav-link"><i class="fas fa-exclamation-triangle nav-icon"></i><span>Emergencies</span></a></li>
+                        <li><a href="/alerts" class=" nav-link"><i class="fas fa-bullhorn nav-icon"></i><span>Emergency Alerts</span></a></li>
+                        <li><a href="/map" class="nav-link"><i class="fas fa-map-marked-alt nav-icon"></i><span>Incident Map</span></a></li>
+                        <li><a href="/weather" class="nav-link"><i class="fas fa-cloud-sun nav-icon"></i><span>Weather Map</span></a></li>
+                        <li class="menu-title text-white">Settings</li>
+                        <li><a href="javascript:void(0)" onclick="showNotifications()" class="nav-link"><i class="fas fa-bell nav-icon"></i><span>Notifications</span></a></li>
+                        <li><a href="/configuration" class="nav-link"><i class="fas fa-cog nav-icon"></i><span>Configuration</span></a></li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+    <!-- Emergency Details Modal -->
+    <dialog id="emergencyModal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Emergency Details</h3>
+
+            <!-- NEW: image container (hidden when no image) -->
+            <div id="emergencyImageContainer" style="margin-top:0.75rem; display:none;">
+                <img id="emergencyImage" alt="Emergency image" style="width:100%; max-height:320px; object-fit:cover; border-radius:8px;" />
+            </div>
+
+            <div id="emergencyDetails" style="margin-top:0.75rem;">
+                <p><strong>ID:</strong> <span id="emergencyId"></span></p>
+                <p><strong>Case Type:</strong> <span id="emergencyCaseType"></span></p>
+                <p><strong>Description:</strong> <span id="emergencyDescription"></span></p>
+                <p><strong>Reported by:</strong> <span id="emergencyUsername"></span></p>
+                <p><strong>Created At:</strong> <span id="emergencyCreatedAt"></span></p>
+                <p><strong>Active:</strong> <span id="emergencyIsActive"></span></p>
+                <p><strong>Location:</strong> <span id="emergencyLocation"></span></p>
+
+                <!-- hidden coords holder used by track button -->
+                <div id="emergencyCoords" style="display:none;">
+                    <span id="emergencyLat"></span>, <span id="emergencyLng"></span>
+                </div>
+
+                <div class="form-control mt-4">
+                    <label class="label">
+                        <span class="label-text">Status</span>
+                    </label>
+                    <select class="select select-bordered" id="emergencyStatus">
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="UNDER_INVESTIGATION">Under Investigation</option>
+                        <option value="MONITORING">Monitoring</option>
+                        <option value="RESOLVED">Resolved</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-action">
+                <button id="trackBtn" class="btn btn-outline" onclick="showIncidentMap()" style="display:none;">Track Location</button>
+                <button id="closeMapBtn" class="btn btn-outline" onclick="closeIncidentMap()" style="display:none;">Close Map</button>
+                 <button class="btn btn-primary" onclick="updateEmergencyStatus()">Update Status</button>
+                 <button class="btn" onclick="closeEmergencyModal()">Close</button>
+             </div>
+            
+            <!-- Embedded map container (hidden until Track Location is used) -->
+            <div id="emergencyMapContainer" style="display:none; margin-top:0.75rem;">
+                <iframe id="emergencyMapIframe" width="100%" height="360" style="border:0; border-radius:8px;" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+         </div>
+     </dialog>
+
+    <!-- Active Alerts Popup -->
+    <dialog id="alertsPopup" class="modal" aria-label="Active Alerts">
+        <div class="modal-box" style="max-width:720px; border-radius:12px;">
+            <h3 class="font-bold text-lg mb-2">Active Incidents</h3>
+            <div id="alertsList" style="max-height:60vh; overflow:auto; display:flex; flex-direction:column; gap:8px;">
+                <!-- populated via JS with rounded cards -->
+            </div>
+            <div class="modal-action">
+                <button class="btn" onclick="document.getElementById('alertsPopup').close()">Close</button>
+            </div>
+        </div>
+    </dialog>
+
+   <!-- Emergency alert sound: place your file at /static/sounds/emergency.mp3 -->
+   <audio id="alertSound" src="/static/sounds/Emergency.mp3" preload="auto"></audio>
+
+    <script>
+        // Modal functions
+        function openEmergencyModal(id) {
+            fetch(`/api/emergencies/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    // basic fields (existing)
+                    document.getElementById('emergencyId').textContent = data.id;
+                    document.getElementById('emergencyCaseType').textContent = data.case_type || (data.case_type && data.case_type.value) || '';
+                    document.getElementById('emergencyDescription').textContent = data.description || data.message || 'No description';
+                    document.getElementById('emergencyUsername').textContent = data.username || (data.user && data.user.username) || 'Unknown';
+                    document.getElementById('emergencyCreatedAt').textContent = data.created_at ? new Date(data.created_at).toLocaleString() : '';
+                    document.getElementById('emergencyIsActive').textContent = (data.isActive || data.is_active || data.active) ? 'Yes' : 'No';
+                    // populate status select
+                    document.getElementById('emergencyStatus').value = data.status || (data.status && data.status.value) || '';
+
+                    // NEW: handle image (support common field names)
+                    const imgUrl = data.image_url || data.image || data.photo || data.picture || null;
+                    const imgContainer = document.getElementById('emergencyImageContainer');
+                    const imgEl = document.getElementById('emergencyImage');
+                    if (imgUrl) {
+                        imgEl.src = imgUrl;
+                        imgEl.alt = `Image for incident ${data.id || ''}`;
+                        imgContainer.style.display = 'block';
+                    } else {
+                        imgEl.src = '';
+                        imgContainer.style.display = 'none';
+                    }
+
+                    // NEW: handle location / coords
+                    const lat = (data.latitude !== undefined && data.latitude !== null) ? data.latitude : (data.lat || null);
+                    const lng = (data.longitude !== undefined && data.longitude !== null) ? data.longitude : (data.lng || data.lon || null);
+
+                    const locationEl = document.getElementById('emergencyLocation');
+                    const coordsEl = document.getElementById('emergencyCoords');
+                    const latEl = document.getElementById('emergencyLat');
+                    const lngEl = document.getElementById('emergencyLng');
+                    const trackBtn = document.getElementById('trackBtn');
+
+                    if (lat !== null && lng !== null && lat !== '' && lng !== '') {
+                        // display coordinates
+                        locationEl.textContent = `Lat: ${lat}, Lng: ${lng}`;
+                        coordsEl.style.display = 'none'; // keep hidden visually; coords stored for track
+                        latEl.textContent = lat;
+                        lngEl.textContent = lng;
+                        // show track button
+                        trackBtn.style.display = 'inline-block';
+                        // ensure close button and map hidden (reset)
+                        document.getElementById('closeMapBtn').style.display = 'none';
+                        document.getElementById('emergencyMapContainer').style.display = 'none';
+                        document.getElementById('emergencyMapIframe').src = '';
+                        // attach data attributes for tracking
+                        trackBtn.dataset.lat = lat;
+                        trackBtn.dataset.lng = lng;
+                    } else {
+                        // fallback to any textual location if present
+                        if (data.location || data.address) {
+                            locationEl.textContent = data.location || data.address;
+                        } else {
+                            locationEl.textContent = 'Unknown';
+                        }
+                        trackBtn.style.display = 'none';
+                        latEl.textContent = '';
+                        lngEl.textContent = '';
+                    }
+
+                    // finally show modal
+                    document.getElementById('emergencyModal').showModal();
+                })
+                .catch(error => alert('Error fetching emergency details: ' + error));
+        }
+ 
+        // Show embedded map inside modal
+        function showIncidentMap() {
+            const btn = document.getElementById('trackBtn');
+            const lat = btn.dataset.lat;
+            const lng = btn.dataset.lng;
+            if (!lat || !lng) {
+                alert('Location coordinates not available for this incident.');
+                return;
+            }
+            const iframe = document.getElementById('emergencyMapIframe');
+            // Use embed output so map appears inside iframe with marker focus
+            const src = `https://maps.google.com/maps?q=${encodeURIComponent(lat)},${encodeURIComponent(lng)}&z=17&output=embed`;
+            iframe.src = src;
+            document.getElementById('emergencyMapContainer').style.display = 'block';
+            // show close map button and hide the track button to avoid duplicates
+            document.getElementById('closeMapBtn').style.display = 'inline-block';
+            document.getElementById('trackBtn').style.display = 'none';
+        }
+
+        // Close embedded map and restore Track button
+        function closeIncidentMap() {
+            document.getElementById('emergencyMapIframe').src = '';
+            document.getElementById('emergencyMapContainer').style.display = 'none';
+            document.getElementById('closeMapBtn').style.display = 'none';
+            document.getElementById('trackBtn').style.display = 'inline-block';
+        }
+
+        function closeEmergencyModal() {
+            document.getElementById('emergencyModal').close();
+        }
+
+        function updateEmergencyStatus() {
+            const id = document.getElementById('emergencyId').textContent;
+            const status = document.getElementById('emergencyStatus').value;
+            fetch(`/api/emergencies/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: status })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    window.location.reload();
+                })
+                .catch(error => alert('Error updating status: ' + error));
+        }
+
+        // Initialize Incident Report Chart
+        const ctx = document.getElementById('incidentChart').getContext('2d');
+        const incidentChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Fire', 'Crime', 'Medical', 'Disaster'],
+                datasets: [{
+                    label: 'Number of Incidents in {{ current_year }}',
+                    data: [
+                        {{ yearly_stats['Fire'] }},
+                        {{ yearly_stats['Crime'] }},
+                        {{ yearly_stats['Medical'] }},
+                        {{ yearly_stats['Disaster'] }}
+                    ],
+                    backgroundColor: [
+                        '#d12f2fff',
+                        '#890000ff',
+                        '#7d7d7dff',
+                        '#4b4b4bff'
+                    ],
+                    /* keep thin border so rounding looks clean */
+                    borderWidth: 1,
+                    /* enable rounded corners and allow rounding on all corners */
+                    borderRadius: 12,
+                    
+                }]
+            },
+            options: {
+                indexAxis: 'y', // render horizontal bars
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    title: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            // horizontal chart uses parsed.x for value
+                            label: function(context) {
+                                return context.dataset.label + ': ' + (context.parsed && context.parsed.x !== undefined ? context.parsed.x : '') + ' incidents';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, precision: 0 },
+                        title: { display: true, text: 'Number of Incidents' }
+                    },
+                    y: {
+                        title: { display: true, text: 'Incident Type' }
+                    }
+                }
+            }
+        });
+
+        /* New: polling & UI for alerts badge + popup */
+(function(){
+    const alertsBtn = document.getElementById('alertsButton');
+    const alertsCountEl = document.getElementById('alertsCount');
+    const alertsListEl = document.getElementById('alertsList');
+    const popup = document.getElementById('alertsPopup');
+    const alertSound = document.getElementById('alertSound');
+
+    // track active IDs to detect new reports
+    let lastActiveIds = [];
+    let initialized = false; // suppress popup on first load
+    let suppressAutoOpen = false; // when true, update list but don't auto-open modal (no sound)
+
+    function playAlertSound() {
+        if (!alertSound) return;
+        try {
+            alertSound.currentTime = 0;
+            const playPromise = alertSound.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(err => {
+                    // Autoplay likely blocked; warn and ignore
+                    console.warn('Alert sound play blocked:', err);
+                });
+            }
+        } catch (e) {
+            console.warn('Unable to play alert sound', e);
+        }
+        // vibration fallback for supported devices
+        if (navigator.vibrate) {
+            navigator.vibrate([200, 100, 200]);
+        }
+    }
+
+    // build an incident card (rounded box)
+    function makeCard(item) {
+        const created = item.created_at ? new Date(item.created_at).toLocaleString() : '';
+        const message = item.description || item.message || 'No description';
+        const caseType = (item.case_type && (item.case_type.value || item.case_type)) || item.case_type || 'Unknown';
+        const username = item.username || (item.user && item.user.username) || 'Unknown';
+        return `
+            <div class="card bg-white p-3 rounded-lg shadow-sm cursor-pointer" role="button" onclick="(function(){ document.getElementById('alertsPopup').close(); openEmergencyModal('${item.id}'); })()">
+                <div class="flex items-start gap-3">
+                    <div style="width:8px; height:48px; border-radius:6px; background:${getAccent(caseType)}"></div>
+                    <div style="flex:1">
+                        <div class="flex items-center justify-between mb-1">
+                            <strong class="text-sm">${caseType} Incident</strong>
+                            <span class="text-xs text-gray-500">${created}</span>
+                        </div>
+                        <div class="text-sm text-gray-700 mb-2">${escapeHtml(message)}</div>
+                        <div class="text-xs text-gray-500">Reported by: ${escapeHtml(username)}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function getAccent(type){
+        const t = String(type).toLowerCase();
+        if(t.includes('fire')) return 'linear-gradient(180deg,#ef4444,#b91c1c)';
+        if(t.includes('medical')) return 'linear-gradient(180deg,#10b981,#059669)';
+        if(t.includes('crime')) return 'linear-gradient(180deg,#2563eb,#1e40af)';
+        if(t.includes('typhoon')||t.includes('flood')) return 'linear-gradient(180deg,#f59e0b,#b45309)';
+        return 'linear-gradient(180deg,#6b7280,#374151)';
+    }
+
+    function escapeHtml(s){
+        if(!s) return '';
+        return String(s).replace(/[&<>"']/g, function (m) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]; });
+    }
+
+    // update badge and list from API result
+    function processItems(items){
+        const arr = Array.isArray(items) ? items : (items.data || []);
+        // filter: must be active and NOT resolved
+        const active = arr.filter(i => {
+            if(!i) return false;
+            // normalize status (support { status: 'Resolved' } or { status: { value: 'Resolved' } })
+            const statusVal = (i.status && (i.status.value || i.status)) || i.status || '';
+            const statusNorm = String(statusVal).toLowerCase();
+            if(statusNorm.includes('resolved')) return false; // exclude resolved incidents
+
+            // determine active flag; treat missing active flags as active
+            const isActiveFlag = (i.isActive === true) || (i.is_active === true) || (i.active === true) ||
+                (!('isActive' in i) && !('is_active' in i) && !('active' in i));
+
+            return !!isActiveFlag;
+        });
+
+        // Update badge
+        const count = active.length;
+        if(count>0){
+            alertsCountEl.textContent = count;
+            alertsCountEl.classList.remove('hidden');
+        } else {
+            alertsCountEl.classList.add('hidden');
+        }
+
+        // populate list
+        alertsListEl.innerHTML = '';
+        if(count === 0){
+            alertsListEl.innerHTML = '<div class="text-center text-gray-600 p-4">No active incidents</div>';
+            // update tracking state even when empty
+            lastActiveIds = [];
+            initialized = true;
+            // reset manual suppress flag so future background polls can auto-open
+            suppressAutoOpen = false;
+            return;
+        }
+        active.forEach(it => {
+            alertsListEl.insertAdjacentHTML('beforeend', makeCard(it));
+        });
+
+        // detect newly reported incidents (by id)
+        const ids = active.map(i => String(i.id)).filter(Boolean);
+        const newIds = ids.filter(id => !lastActiveIds.includes(id));
+        // if this is not the initial load and there's a new id, open modal for the newest one
+        // but skip auto-open when user manually opened the alerts panel (suppressAutoOpen)
+        if (initialized && newIds.length > 0 && !suppressAutoOpen) {
+            const newest = newIds[0];
+            try {
+                // play sound (may be blocked until user interacts with the page)
+                playAlertSound();
+                // only open if emergency modal is not already open
+                const emModal = document.getElementById('emergencyModal');
+                if (!emModal.open) {
+                    openEmergencyModal(newest);
+                }
+            } catch (e) {
+                console.warn('Auto-open modal failed', e);
+            }
+        }
+
+        // update lastActiveIds and mark initialized
+        lastActiveIds = ids;
+        initialized = true;
+        // clear manual suppress after processing
+        suppressAutoOpen = false;
+     }
+
+    // try two endpoints gracefully
+    function fetchActiveAlerts(){
+        // prefer endpoint filtering if available
+        fetch('/api/emergencies?active=true').then(handleFetch).catch(() => {
+            fetch('/api/emergencies').then(handleFetch).catch(err => {
+                console.warn('Unable to fetch alerts:', err);
+            });
+        });
+
+        function handleFetch(res){
+            if(!res.ok) return Promise.reject(res);
+            return res.json().then(processItems).catch(err => console.warn('Invalid JSON for alerts', err));
+        }
+    }
+
+    // initial load + poll
+    fetchActiveAlerts();
+    const pollInterval = 10000; // 10s
+    setInterval(fetchActiveAlerts, pollInterval);
+
+    // open popup on button click
+    alertsBtn.addEventListener('click', function(){
+        // user intentionally opening the alerts panel:
+        // refresh list but suppress auto-opening the emergency modal (no sound) for this fetch
+        suppressAutoOpen = true;
+        fetchActiveAlerts();
+        popup.showModal();
+    });
+
+})();
+    </script>
+</body>
+
+        <script src="/static/js/notifications.js"></script>
+</html>
