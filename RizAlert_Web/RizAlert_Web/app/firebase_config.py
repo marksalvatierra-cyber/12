@@ -1,16 +1,50 @@
 import firebase_admin
 from firebase_admin import credentials, firestore, db, auth
 import os
+import json
+import base64
+
 
 # Initialize Firebase
 def initialize_firebase():
-    cred_path = os.environ.get('FIREBASE_CREDENTIALS', 'firebase-credentials.json')
+    """
+    Initialize Firebase using credentials provided either as:
+    - a filesystem path to the service account JSON file (default),
+    - the raw JSON content of the service account, or
+    - a base64-encoded JSON string.
+
+    The environment variable `FIREBASE_CREDENTIALS` may contain any of the above.
+    """
+    cred_source = os.environ.get('FIREBASE_CREDENTIALS', 'firebase-credentials.json')
     database_url = os.environ.get('FIREBASE_DATABASE_URL', 'https://rizalert-ca105-default-rtdb.asia-southeast1.firebasedatabase.app/')
-    
+
     if not firebase_admin._apps:
         try:
-            cred = credentials.Certificate(cred_path)
-            
+            cred = None
+
+            # Case 1: FIREBASE_CREDENTIALS contains raw JSON
+            if isinstance(cred_source, str) and cred_source.strip().startswith('{'):
+                try:
+                    cred_dict = json.loads(cred_source)
+                    cred = credentials.Certificate(cred_dict)
+                except Exception:
+                    raise
+
+            # Case 2: FIREBASE_CREDENTIALS is a path to a file
+            if cred is None:
+                # If the string looks like a valid path on disk, use it
+                if os.path.exists(cred_source):
+                    cred = credentials.Certificate(cred_source)
+                else:
+                    # Case 3: maybe base64-encoded JSON
+                    try:
+                        decoded = base64.b64decode(cred_source).decode('utf-8')
+                        cred_dict = json.loads(decoded)
+                        cred = credentials.Certificate(cred_dict)
+                    except Exception:
+                        # Fall back to raising a clearer error
+                        raise FileNotFoundError(f"Credentials not found as file and not valid JSON/base64 data: {cred_source[:100]}...")
+
             # Initialize with database URL if provided
             if database_url:
                 firebase_admin.initialize_app(cred, {
@@ -23,8 +57,8 @@ def initialize_firebase():
                 print("Note: Set FIREBASE_DATABASE_URL to enable Realtime Database")
         except Exception as e:
             print(f"Error initializing Firebase: {e}")
-            print(f"Please ensure your Firebase credentials file is at: {cred_path}")
-    
+            print("Please ensure your Firebase credentials are provided either as a file path, raw JSON, or base64-encoded JSON in the FIREBASE_CREDENTIALS environment variable.")
+
     return firestore.client()
 
 # Get Firestore client
